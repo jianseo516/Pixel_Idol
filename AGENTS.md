@@ -6,72 +6,112 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 <!-- END:nextjs-agent-rules -->
 
-# Pixel Idol Development Guide
+<!-- BEGIN:nextjs-agent-rules -->
 
-## Project overview
+# This is NOT the Next.js you know
 
-Pixel Idol is a season-based territory game for idol fandoms.
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 
-Users select one idol to support and use tokens to occupy empty tiles, attack adjacent enemy tiles, defend their territory, and contribute to their fandom's connected territory.
+<!-- END:nextjs-agent-rules -->
 
-At the end of each season, the final map is rendered as a permanent image and stored in a season archive.
+# 아이돌 픽셀 개발 지침
 
-## Current development stage
+## 프로젝트 개요
 
-The current goal is to build and validate a local game prototype.
+아이돌 픽셀은 아이돌 팬덤이 참여하는 시즌제 영토 점령 게임이다.
 
-Do not implement production authentication, payment processing, real-money token purchases, or large-scale realtime infrastructure unless explicitly requested.
+사용자는 응원할 아이돌 하나를 선택하고 토큰을 사용하여 빈 타일을 점령하거나, 인접한 상대 타일을 공격하거나, 자신의 영토를 방어한다.
 
-## Core MVP rules
+각 시즌이 종료되면 최종 지도 전체를 이미지로 저장하고 과거 시즌 기록관에 영구 보존한다.
 
-- The map is made of square tiles.
-- Each user supports one idol.
-- Each idol has a predefined starting territory.
-- Empty tiles can only be occupied when adjacent to the user's idol territory.
-- Adjacency uses four directions only: up, down, left, and right.
-- Diagonal adjacency does not count.
-- Enemy tiles can only be attacked when adjacent to the user's idol territory.
-- Each tile has HP.
-- An attack reduces the tile's HP.
-- When HP reaches zero, ownership changes to the attacking idol.
-- Ownership, HP, and token calculations must be handled by pure game logic functions.
-- Game balance values must be stored in centralized configuration rather than hardcoded throughout the UI.
+## 현재 개발 단계
 
-## Representative canvas concept
+현재 목표는 실제 서비스 전체를 한 번에 구현하는 것이 아니라, 로컬 환경에서 핵심 게임성을 검증할 수 있는 프로토타입을 만드는 것이다.
 
-Each fandom may later have one season representative image or poster.
+명시적인 요청이 있기 전에는 다음 기능을 구현하지 않는다.
 
-The largest connected territory owned by an idol may be treated as that idol's representative canvas.
+- 실제 회원가입 및 로그인
+- 데이터베이스 연결
+- 실시간 다중 사용자 기능
+- 실제 결제
+- 유료 토큰
+- 사용자 이미지 업로드
+- 운영용 관리자 페이지
 
-Planned behavior:
+## 기본 게임 규칙
 
-- The largest connected territory displays the representative image.
-- Smaller disconnected territories display only the idol color, initials, or pattern.
-- Only tiles currently owned by the idol reveal the corresponding portion of the image.
-- Losing a tile hides or replaces that part of the image.
-- Season-ending maps are rendered and archived permanently.
+- 지도는 정사각형 타일로 구성한다.
+- 사용자는 하나의 아이돌을 선택하여 응원한다.
+- 각 아이돌은 미리 정해진 시작 영토를 가진다.
+- 빈 타일은 사용자가 응원하는 아이돌의 영토와 인접한 경우에만 점령할 수 있다.
+- 인접 여부는 상하좌우 네 방향만 인정한다.
+- 대각선은 인접한 것으로 보지 않는다.
+- 상대 타일은 내 아이돌 영토와 인접한 경우에만 공격할 수 있다.
+- 각 타일은 HP를 가진다.
+- 공격하면 타일의 HP가 감소한다.
+- HP가 0 이하가 되면 해당 타일의 소유권이 공격한 아이돌에게 넘어간다.
+- 소유권, HP, 토큰 및 인접 여부 계산은 UI와 분리된 순수 함수에서 처리한다.
+- 게임 수치와 밸런스 값은 여러 파일에 직접 작성하지 않고 중앙 설정 파일에서 관리한다.
 
-Do not implement image upload or copyrighted idol photographs without explicit instructions.
+## 시즌 규칙
 
-## Architecture rules
+- 게임은 시즌제로 운영한다.
+- 시즌에는 시작 시각과 종료 시각이 존재한다.
+- 종료된 시즌의 타일 상태는 더 이상 수정할 수 없다.
+- 시즌 종료 시 최종 지도 전체를 고해상도 이미지로 생성한다.
+- 최종 지도 이미지와 주요 시즌 통계를 기록관에 영구 보존한다.
+- 현재 프로토타입에서는 실제 자동 시즌 종료 기능을 구현하지 않아도 된다.
+- 이후 시즌 기능을 추가하기 쉽도록 데이터 구조는 시즌 식별자를 고려해 설계한다.
 
-- Use Next.js App Router.
-- Use TypeScript with strict typing.
-- Avoid `any`.
-- Use Tailwind CSS for styling.
-- Use reusable components.
-- Keep `src/app/page.tsx` small.
-- Separate UI, rendering, state management, game logic, and types.
-- Prefer pure functions for game calculations.
-- Do not place all game logic inside React components.
-- Do not install external packages unless their purpose is explained first.
-- Do not modify unrelated files.
-- Do not expose secrets in client-side code.
-- Do not create environment variables with real credentials in committed files.
+## 대표 캔버스 개념
 
-## Recommended source structure
+각 팬덤은 향후 시즌 대표 이미지 또는 포스터 하나를 사용할 수 있다.
 
-Use this structure when appropriate:
+해당 아이돌이 보유한 영토 중 가장 큰 연결 영역을 대표 캔버스로 지정하는 방식을 고려한다.
+
+예정된 동작은 다음과 같다.
+
+- 가장 큰 연결 영토에는 시즌 대표 이미지 또는 포스터를 표시한다.
+- 분리된 작은 영토에는 아이돌의 대표 색상, 이니셜 또는 패턴만 표시한다.
+- 현재 해당 아이돌이 소유한 타일 부분에서만 이미지가 보인다.
+- 타일을 빼앗기면 해당 부분의 이미지가 가려지거나 상대 진영 표시로 교체된다.
+- 시즌 종료 시 이러한 최종 상태가 지도 이미지에 그대로 기록된다.
+
+명시적인 요청이 있기 전에는 다음 기능을 구현하지 않는다.
+
+- 이미지 업로드
+- 실제 아이돌 사진 사용
+- 저작권이 확인되지 않은 이미지 사용
+- 팬덤 투표
+- 이미지 검수 시스템
+
+## 기술 구성
+
+- Next.js App Router 사용
+- TypeScript 사용
+- Tailwind CSS 사용
+- 대형 타일 지도는 HTML Canvas로 렌더링
+- 현재 단계에서는 로컬 메모리 상태 사용
+- 실제 백엔드와 데이터베이스는 나중에 연결
+
+## 코드 작성 규칙
+
+- TypeScript의 엄격한 타입 검사를 유지한다.
+- 특별한 이유가 없다면 `any`를 사용하지 않는다.
+- 변수명, 함수명, 타입명, 파일명은 영어로 작성한다.
+- 사용자에게 표시되는 문구와 작업 설명은 한국어로 작성한다.
+- 재사용 가능한 컴포넌트를 만든다.
+- `src/app/page.tsx`에 전체 기능을 넣지 않는다.
+- UI, 게임 상태, 게임 규칙, Canvas 렌더링, 좌표 계산, 타입을 분리한다.
+- 게임 규칙 계산은 가능한 한 순수 함수로 작성한다.
+- 관련 없는 파일을 수정하지 않는다.
+- 외부 패키지를 설치하기 전 반드시 필요성과 사용 목적을 설명한다.
+- 비밀키나 실제 인증정보를 코드에 작성하지 않는다.
+- 브라우저 전용 API는 서버 렌더링 중 실행되지 않도록 처리한다.
+
+## 권장 폴더 구조
+
+필요에 따라 다음 구조를 사용한다.
 
 ```text
 src/
@@ -85,59 +125,66 @@ src/
       components/
       hooks/
       logic/
+      rendering/
       types/
   lib/
-  styles/
 ```
 
-The exact structure may be adjusted if there is a clear reason.
+구조를 다르게 구성해야 한다면 변경 이유를 먼저 설명한다.
 
-## Canvas and map rules
+## Canvas 지도 규칙
 
-- Render large tile maps using HTML Canvas rather than one DOM element per tile.
-- Support panning and zooming.
-- Draw only the visible area where practical.
-- Keep coordinate conversion logic separate from React UI.
-- Device pixel ratio must be handled correctly.
-- Selected tiles must be visually highlighted.
-- Tile coordinates, owner, and HP must be available in an information panel.
-- Do not use browser-only APIs during server rendering without guards.
+- 타일마다 HTML 요소를 만드는 방식은 피한다.
+- 대형 지도는 HTML Canvas로 렌더링한다.
+- 마우스 또는 터치로 지도를 이동할 수 있게 한다.
+- 휠 또는 제스처로 확대·축소할 수 있게 한다.
+- 가능한 경우 현재 화면에 보이는 타일만 그린다.
+- Canvas의 실제 해상도와 CSS 표시 크기를 구분한다.
+- `devicePixelRatio`를 적절히 처리한다.
+- 선택된 타일은 명확하게 강조한다.
+- 선택한 타일의 좌표, 소유자, HP를 정보 패널에 표시한다.
+- 화면 좌표와 타일 좌표 변환 로직을 UI와 분리한다.
 
-## Data and state rules
+## 로컬 프로토타입의 상태 관리
 
-For the local prototype:
+현재 단계에서는 다음 원칙을 따른다.
 
-- Use mock data or local in-memory state.
-- Do not add Supabase, Convex, Firebase, or another backend yet.
-- Do not implement localStorage authentication.
-- Keep state structures compatible with a future server-backed implementation.
-- Identify tiles using stable coordinates or IDs.
-- Avoid duplicating the same tile state in multiple places.
+- 목업 데이터 또는 React의 로컬 상태를 사용한다.
+- Supabase, Firebase, Convex 등의 백엔드를 아직 연결하지 않는다.
+- 임시 로그인 기능도 구현하지 않는다.
+- 향후 서버 저장 방식으로 교체하기 쉬운 데이터 구조를 사용한다.
+- 타일은 안정적인 좌표 또는 식별자를 사용한다.
+- 같은 타일 상태를 여러 위치에 중복 저장하지 않는다.
 
-For a future production version:
+## 향후 서버 구현 원칙
 
-- The client must never determine authoritative attack results.
-- Token deduction and tile updates must occur atomically on the server.
-- Duplicate requests must be handled safely.
-- Server-side validation must check ownership, adjacency, tokens, season status, and rate limits.
+실제 서버를 연결할 때는 다음 원칙을 적용한다.
 
-## Testing requirements
+- 클라이언트가 공격 결과를 직접 결정하지 않는다.
+- 서버에서 사용자, 아이돌, 토큰, 인접 여부, 시즌 상태를 다시 검증한다.
+- 토큰 차감과 타일 상태 변경을 하나의 원자적 작업으로 처리한다.
+- 동일 요청의 중복 처리를 방지한다.
+- 사용자의 비정상적인 반복 요청을 제한한다.
+- 관리자 권한과 비밀키를 브라우저에 노출하지 않는다.
 
-Add tests for pure game logic when implementing it.
+## 테스트 규칙
 
-Important cases include:
+게임 규칙을 구현할 때 순수 함수에 대한 테스트를 작성한다.
 
-- four-direction adjacency,
-- diagonal rejection,
-- occupation eligibility,
-- enemy attack eligibility,
-- HP reduction,
-- ownership transfer,
-- insufficient token handling,
-- invalid coordinates,
-- connected territory calculation.
+주요 테스트 항목은 다음과 같다.
 
-After meaningful changes, run the available checks:
+- 상하좌우 인접 판정
+- 대각선 인접 거부
+- 빈 타일 점령 가능 여부
+- 상대 타일 공격 가능 여부
+- HP 감소
+- HP가 0이 되었을 때 소유권 변경
+- 토큰 부족 처리
+- 잘못된 좌표 처리
+- 연결 영토 계산
+- 가장 큰 연결 영토 계산
+
+의미 있는 변경을 마친 뒤 가능한 검사를 실행한다.
 
 ```bash
 npm run lint
@@ -145,65 +192,75 @@ npx tsc --noEmit
 npm run build
 ```
 
-Run tests as well when a test script exists.
+테스트 스크립트가 존재하면 테스트도 실행한다.
 
-## Git workflow
+## Git 작업 규칙
 
-Make focused changes and use clear commit messages.
+한 커밋에는 하나의 명확한 작업만 포함한다.
 
-Examples:
+커밋 메시지 예시:
 
 ```text
-chore: initialize project
-feat: add canvas tile map
-feat: add tile attack logic
-fix: prevent diagonal occupation
-refactor: separate game rendering logic
-test: add ownership transfer tests
-docs: update game rules
+chore: 프로젝트 초기 설정
+feat: Canvas 타일 지도 추가
+feat: 타일 공격 규칙 추가
+fix: 대각선 점령 방지
+refactor: 게임 렌더링 로직 분리
+test: 소유권 변경 테스트 추가
+docs: 게임 규칙 문서 수정
 ```
 
-Do not commit:
+다음 항목은 Git에 올리지 않는다.
 
 - `.env.local`
-- API secrets
-- service-role keys
-- build output
-- temporary screenshots
-- generated local database files
+- API 비밀키
+- Supabase 서비스 역할 키
+- 빌드 결과물
+- 임시 캡처 이미지
+- 로컬 데이터베이스 파일
 
-## Coding-agent workflow
+## Codex 작업 방식
 
-Before changing files:
+파일을 수정하기 전에 다음 절차를 따른다.
 
-1. Read this file.
-2. Inspect the repository.
-3. Read the relevant current Next.js documentation from `node_modules/next/dist/docs/`.
-4. State which files will be changed.
-5. Avoid changing unrelated files.
+1. 이 `AGENTS.md` 파일을 읽는다.
+2. 현재 저장소 구조를 확인한다.
+3. `node_modules/next/dist/docs/`에서 현재 Next.js 버전과 관련된 문서를 읽는다.
+4. 수정하거나 생성할 파일을 먼저 설명한다.
+5. 요청과 무관한 파일은 수정하지 않는다.
 
-After changing files:
+작업 후에는 다음 내용을 한국어로 보고한다.
 
-1. Summarize each changed file.
-2. Explain how to test the feature manually.
-3. Report lint, type-check, test, and build results.
-4. Clearly identify any unresolved issue.
-5. Do not claim checks passed unless they were actually run.
+1. 변경한 파일과 각 파일의 역할
+2. 구현한 기능의 동작 방식
+3. 사용자가 수동으로 테스트하는 방법
+4. 실행한 lint, 타입 검사, 테스트 및 빌드 결과
+5. 해결하지 못한 문제
+6. 다음 작업으로 추천하는 항목
 
-## Deferred features
+실제로 실행하지 않은 검사를 통과했다고 말하지 않는다.
 
-Do not implement these until explicitly requested:
+## 응답 언어
 
-- real-money payment,
-- token purchase limits,
-- payment refunds,
-- user-generated image upload,
-- idol registration requests,
-- public chat,
-- direct messages,
-- user-to-user token transfer,
-- realtime multiplayer,
-- season reward distribution,
-- advertising or donation rewards,
-- sponsor integration,
-- production admin dashboard.
+- 모든 작업 계획, 설명, 결과 보고는 한국어로 작성한다.
+- 코드 식별자와 파일명은 영어로 유지한다.
+- 코드 주석은 필요한 경우 한국어로 작성할 수 있다.
+- 오류 메시지 원문은 그대로 보여주고, 설명은 한국어로 작성한다.
+
+## 현재 보류 기능
+
+명시적으로 요청하기 전까지 다음 기능은 구현하지 않는다.
+
+- 실제 결제
+- 유료 토큰 구매
+- 구매 가능량의 시간별 충전
+- 환불
+- 사용자 이미지 업로드
+- 아이돌 등록 요청
+- 공개 채팅
+- 개인 메시지
+- 사용자 간 토큰 전달
+- 실시간 멀티플레이
+- 광고·기부 보상
+- 스폰서 기능
+- 정식 관리자 대시보드
