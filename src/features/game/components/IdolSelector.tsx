@@ -2,7 +2,7 @@ import type { Idol } from "@/features/game/types/game";
 
 interface IdolSelectorProps {
   readonly idols: readonly Idol[];
-  readonly selectedId: Idol["id"];
+  readonly selectedId: Idol["id"] | null;
   readonly onChange: (idolId: Idol["id"]) => void;
   readonly disabled?: boolean;
 }

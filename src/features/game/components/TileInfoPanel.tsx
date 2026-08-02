@@ -13,7 +13,7 @@ export interface GameActionMessage {
 interface TileInfoPanelProps {
   readonly selectedTile: Tile | null;
   readonly owner: Idol | null;
-  readonly tokens: number;
+  readonly tokens: number | null;
   readonly preview: TileActionPreview | null;
   readonly actionMessage: GameActionMessage | null;
   readonly isPending: boolean;
@@ -42,15 +42,15 @@ export function TileInfoPanel({
           </p>
           <h2 className="mt-1 text-lg font-bold text-white">타일 정보</h2>
         </div>
-        <div className="rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-right">
+        {isAuthenticated && tokens !== null ? <div className="rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-right">
           <p className="text-[10px] font-semibold tracking-wider text-amber-300 uppercase">
             보유 토큰
           </p>
           <p className="text-lg font-black text-amber-100">{tokens}</p>
-        </div>
+        </div> : null}
       </div>
 
-      {selectedTile && preview ? (
+      {selectedTile ? (
         <>
           <dl className="mt-5 grid grid-cols-[auto_1fr] gap-x-4 gap-y-3 text-sm">
             <dt className="text-slate-400">좌표</dt>
@@ -72,19 +72,21 @@ export function TileInfoPanel({
             <dd className="text-right font-semibold text-white">
               {selectedTile.hp} / {GAME_CONFIG.maxTileHp}
             </dd>
-            <dt className="text-slate-400">예상 행동</dt>
-            <dd className="text-right font-semibold text-white">{preview.label}</dd>
-            <dt className="text-slate-400">가능 여부</dt>
-            <dd className={`text-right font-semibold ${preview.allowed ? "text-emerald-300" : "text-slate-400"}`}>
-              {preview.allowed ? "가능" : "불가"}
-            </dd>
-            <dt className="text-slate-400">비용</dt>
-            <dd className="text-right font-semibold text-white">
-              {preview.cost === null ? "-" : `${preview.cost}토큰`}
-            </dd>
+            {preview ? <>
+              <dt className="text-slate-400">예상 행동</dt>
+              <dd className="text-right font-semibold text-white">{preview.label}</dd>
+              <dt className="text-slate-400">가능 여부</dt>
+              <dd className={`text-right font-semibold ${preview.allowed ? "text-emerald-300" : "text-slate-400"}`}>
+                {preview.allowed ? "가능" : "불가"}
+              </dd>
+              <dt className="text-slate-400">비용</dt>
+              <dd className="text-right font-semibold text-white">
+                {preview.cost === null ? "-" : `${preview.cost}토큰`}
+              </dd>
+            </> : null}
           </dl>
 
-          {preview.reasonMessage ? (
+          {preview?.reasonMessage ? (
             <p className="mt-4 rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm leading-5 text-slate-300">
               {preview.reasonMessage}
             </p>
@@ -98,7 +100,7 @@ export function TileInfoPanel({
             >
               로그인 후 이용할 수 있습니다.
             </button>
-          ) : preview.allowed ? (
+          ) : preview?.allowed ? (
             <button
               type="button"
               onClick={onAction}

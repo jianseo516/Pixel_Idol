@@ -36,8 +36,10 @@ import { isLegacyAnonymousUser } from "@/features/auth/authAudience";
 import { initializeAuthenticatedAccount } from "@/features/auth/accountInitialization";
 import { isCurrentUserAdmin, recordLoginActivity } from "@/features/admin/adminData";
 import { useGamePresence } from "@/features/admin/useGamePresence";
+import { isCurrentAuthRequest } from "@/features/auth/authRequestGeneration";
 
 type LoadStatus = "loading" | "ready" | "error";
+export type GameAuthStatus = "loading" | "authenticated" | "unauthenticated";
 export type RealtimeConnectionStatus =
   | "connecting"
   | "connected"
@@ -64,6 +66,7 @@ export function useSupabaseGame() {
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [player, setPlayer] = useState<PlayerRow | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [authStatus, setAuthStatus] = useState<GameAuthStatus>("loading");
   const [realtimeStatus, setRealtimeStatus] =
     useState<RealtimeConnectionStatus>("connecting");
   const mutationRunnerRef = useRef(createExclusiveTaskRunner());
@@ -72,6 +75,17 @@ export function useSupabaseGame() {
   const uploadRunnerRef = useRef(createExclusiveTaskRunner());
   const lastVisibilityRef = useRef<DocumentVisibilityState>("visible");
   const tileRealtimeRef = useRef<TileRealtimeState>(EMPTY_TILE_REALTIME_STATE);
+  const authGenerationRef = useRef(0);
+
+  const clearPersonalState = useCallback(() => {
+    setUser(null);
+    setProfile(null);
+    setPlayer(null);
+    setIsAdmin(false);
+    setIsPending(false);
+    setIsUploadingImage(false);
+    setGameState((current) => current ? { ...current, tokens: 0 } : current);
+  }, []);
 
   const setLoadedSnapshot = useCallback(
     (snapshot: Awaited<ReturnType<typeof loadGameSnapshot>>) => {
@@ -84,7 +98,10 @@ export function useSupabaseGame() {
   );
 
   const initialize = useCallback(async () => {
+    const requestGeneration = ++authGenerationRef.current;
     setStatus("loading");
+    setAuthStatus("loading");
+    clearPersonalState();
     setErrorMessage(null);
     try {
       const client = getSupabaseBrowserClient();
@@ -95,43 +112,51 @@ export function useSupabaseGame() {
         await clearLegacyAnonymousSession(client, currentUser);
       }
       const authenticated = isPermanentUser(currentUser);
-      setUser(authenticated && !isLegacyAnonymousUser(currentUser) ? currentUser : null);
       const account = authenticated && currentUser
         ? await initializeAuthenticatedAccount(client, currentUser.id)
         : null;
       const snapshot = account
         ? await loadGameSnapshot(client, account.seasonId, currentUser?.id)
         : await loadPublicGameSnapshot(client);
+      if (!isCurrentAuthRequest(requestGeneration, authGenerationRef.current)) return;
       setLoadedSnapshot(snapshot);
       if (account) {
         const nextIsAdmin = await isCurrentUserAdmin(client);
         await recordLoginActivity(client);
+        if (!isCurrentAuthRequest(requestGeneration, authGenerationRef.current)) return;
+        setUser(currentUser);
         setProfile(account.profile);
         setPlayer(account.player);
         setIsAdmin(nextIsAdmin);
+        setAuthStatus("authenticated");
       } else {
-        setProfile(null);
-        setPlayer(null);
-        setIsAdmin(false);
+        clearPersonalState();
+        setAuthStatus("unauthenticated");
       }
     } catch (error) {
+      if (!isCurrentAuthRequest(requestGeneration, authGenerationRef.current)) return;
       setErrorMessage(getErrorMessage(error));
       setStatus("error");
     }
-  }, [setLoadedSnapshot]);
+  }, [clearPersonalState, setLoadedSnapshot]);
 
   useEffect(() => {
     let active = true;
     const client = getSupabaseBrowserClient();
     queueMicrotask(() => { if (active) void initialize(); });
-    const { data: listener } = client.auth.onAuthStateChange(() => {
+    const { data: listener } = client.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") {
+        authGenerationRef.current += 1;
+        clearPersonalState();
+        setAuthStatus("unauthenticated");
+      }
       window.setTimeout(() => { if (active) void initialize(); }, 0);
     });
     return () => {
       active = false;
       listener.subscription.unsubscribe();
     };
-  }, [initialize]);
+  }, [clearPersonalState, initialize]);
 
   const mergeTileRow = useCallback(
     (
@@ -297,10 +322,11 @@ export function useSupabaseGame() {
       const seasonId = gameState?.season.id;
       if (!seasonId) return null;
       if (!user) throw new Error("로그인이 필요합니다.");
+      const requestGeneration = authGenerationRef.current;
       const player = await runMutation(() =>
         changeSupportedIdolRemote(getSupabaseBrowserClient(), seasonId, idolId),
       );
-      if (player) {
+      if (player && isCurrentAuthRequest(requestGeneration, authGenerationRef.current)) {
         setPlayer(player);
         setGameState((current) => current?.season.id === seasonId
           ? { ...current, supportedIdolId: player.supported_idol_id, tokens: player.tokens }
@@ -320,12 +346,15 @@ export function useSupabaseGame() {
       const seasonId = gameState?.season.id;
       if (!seasonId) return null;
       if (!user) throw new Error("로그인이 필요합니다.");
+      const requestGeneration = authGenerationRef.current;
       try {
         const result = await runMutation(() => action(seasonId, coordinate));
-        if (result) {
+        if (result && isCurrentAuthRequest(requestGeneration, authGenerationRef.current)) {
           mergeTileRow(seasonId, result.tile, eventType, result.player);
         }
-        return result?.tile ?? null;
+        return isCurrentAuthRequest(requestGeneration, authGenerationRef.current)
+          ? result?.tile ?? null
+          : null;
       } catch (error) {
         if (shouldResynchronizeAfterTileActionError(error)) {
           await synchronizeTiles().catch(() => undefined);
@@ -363,6 +392,7 @@ export function useSupabaseGame() {
     const idolId = gameState?.supportedIdolId;
     if (!seasonId || !idolId) return null;
     if (!user) throw new Error("로그인이 필요합니다.");
+    const requestGeneration = authGenerationRef.current;
     const result = await uploadRunnerRef.current.tryRun(async () => {
       setIsUploadingImage(true);
       try {
@@ -373,17 +403,19 @@ export function useSupabaseGame() {
         setIsUploadingImage(false);
       }
     });
-    if (result.value) mergeIdolRow(result.value.idol);
-    return result.value;
+    if (result.value && isCurrentAuthRequest(requestGeneration, authGenerationRef.current)) {
+      mergeIdolRow(result.value.idol);
+      return result.value;
+    }
+    return null;
   }, [gameState?.season.id, gameState?.supportedIdolId, mergeIdolRow, user]);
 
   const logout = useCallback(async () => {
     await signOut(getSupabaseBrowserClient());
-    setUser(null);
-    setProfile(null);
-    setPlayer(null);
-    setIsAdmin(false);
-  }, []);
+    authGenerationRef.current += 1;
+    clearPersonalState();
+    setAuthStatus("unauthenticated");
+  }, [clearPersonalState]);
 
   useGamePresence(user?.id ?? null);
 
@@ -398,7 +430,9 @@ export function useSupabaseGame() {
     user,
     profile,
     player,
-    isAuthenticated: Boolean(user),
+    authStatus,
+    supportedIdolId: authStatus === "authenticated" ? player?.supported_idol_id ?? null : null,
+    isAuthenticated: authStatus === "authenticated" && Boolean(user && profile && player),
     isAdmin,
     retry: initialize,
     synchronizeTiles,

@@ -19,7 +19,7 @@ import { getTerritoryBoundarySegments } from "@/features/game/logic/territoryBou
 import { getFactionTerritoryCount } from "@/features/game/logic/playerStats";
 import { consumeMyPageQuery } from "@/features/game/logic/myPageNavigation";
 import { createRepresentativeLayerSpecs } from "@/features/game/rendering/representativeImage";
-import { getOwnedTerritoryWorldCenter } from "@/features/game/rendering/viewport";
+import { getMapWorldSize, getOwnedTerritoryWorldCenter } from "@/features/game/rendering/viewport";
 import type { Coordinate, Idol } from "@/features/game/types/game";
 
 export function GamePrototype() {
@@ -30,13 +30,19 @@ export function GamePrototype() {
   const [actionMessage, setActionMessage] = useState<GameActionMessage | null>(null);
   const [isMyPageOpen, setIsMyPageOpen] = useState(false);
   const myPageButtonRef = useRef<HTMLButtonElement>(null);
+  const personalSupportedIdolId = remote.supportedIdolId;
 
   const idols = useMemo(() => Object.values(gameState?.idols ?? {}), [gameState]);
   const territoryCenter = useMemo(
-    () => gameState
-      ? getOwnedTerritoryWorldCenter(gameState, gameState.supportedIdolId)
-      : { x: 0, y: 0 },
-    [gameState],
+    () => {
+      if (!gameState) return { x: 0, y: 0 };
+      if (personalSupportedIdolId) {
+        return getOwnedTerritoryWorldCenter(gameState, personalSupportedIdolId);
+      }
+      const worldSize = getMapWorldSize(gameState.mapSize);
+      return { x: worldSize.x / 2, y: worldSize.y / 2 };
+    },
+    [gameState, personalSupportedIdolId],
   );
   const selectedTile = useMemo(
     () => gameState && selectedCoordinate ? getTile(gameState, selectedCoordinate) ?? null : null,
@@ -46,29 +52,31 @@ export function GamePrototype() {
     ? gameState.idols[selectedTile.ownerId] ?? null
     : null;
   const actionPreview = useMemo(
-    () => gameState && selectedCoordinate
+    () => remote.isAuthenticated && gameState && selectedCoordinate
       ? getTileActionPreview(gameState, selectedCoordinate)
       : null,
-    [gameState, selectedCoordinate],
+    [gameState, remote.isAuthenticated, selectedCoordinate],
   );
   const actionableTiles = useMemo(
-    () => gameState ? getActionableTiles(gameState) : { claimable: [], attackable: [] },
-    [gameState],
+    () => remote.isAuthenticated && gameState
+      ? getActionableTiles(gameState)
+      : { claimable: [], attackable: [] },
+    [gameState, remote.isAuthenticated],
   );
   const territorySummaries = useMemo(
     () => gameState ? getAllIdolTerritorySummaries(gameState) : {},
     [gameState],
   );
   const supportedSummary = useMemo(
-    () => gameState
-      ? territorySummaries[gameState.supportedIdolId] ?? {
-          ownerId: gameState.supportedIdolId,
+    () => gameState && personalSupportedIdolId
+      ? territorySummaries[personalSupportedIdolId] ?? {
+          ownerId: personalSupportedIdolId,
           regions: [],
           largestRegion: null,
           totalTileCount: 0,
         }
       : { ownerId: "", regions: [], largestRegion: null, totalTileCount: 0 },
-    [gameState, territorySummaries],
+    [gameState, personalSupportedIdolId, territorySummaries],
   );
   const representativeBoundary = useMemo(
     () => getTerritoryBoundarySegments(supportedSummary?.largestRegion?.coordinates ?? []),
@@ -81,8 +89,10 @@ export function GamePrototype() {
     [gameState, territorySummaries],
   );
   const factionTerritoryCount = useMemo(
-    () => gameState ? getFactionTerritoryCount(gameState, gameState.supportedIdolId) : 0,
-    [gameState],
+    () => gameState && personalSupportedIdolId
+      ? getFactionTerritoryCount(gameState, personalSupportedIdolId)
+      : 0,
+    [gameState, personalSupportedIdolId],
   );
   const closeMyPage = useCallback(() => {
     setIsMyPageOpen(false);
@@ -90,6 +100,11 @@ export function GamePrototype() {
   }, []);
 
   useEffect(() => {
+    if (!remote.isAuthenticated) {
+      let active = true;
+      queueMicrotask(() => { if (active) setIsMyPageOpen(false); });
+      return () => { active = false; };
+    }
     if (!remote.isAuthenticated || !remote.profile || !remote.player) return;
     const navigation = consumeMyPageQuery(window.location.pathname, window.location.search);
     if (!navigation.shouldOpen) return;
@@ -132,7 +147,7 @@ export function GamePrototype() {
         return;
       }
       const nextOwnerId = changedTile.owner_id;
-      const captured = previousOwnerId !== nextOwnerId && nextOwnerId === gameState.supportedIdolId;
+      const captured = previousOwnerId !== nextOwnerId && nextOwnerId === personalSupportedIdolId;
       setActionMessage({
         kind: "success",
         text: captured
@@ -145,7 +160,7 @@ export function GamePrototype() {
         text: error instanceof Error ? error.message : "행동 처리에 실패했습니다.",
       });
     }
-  }, [actionPreview, gameState, remote, router, selectedCoordinate]);
+  }, [actionPreview, gameState, personalSupportedIdolId, remote, router, selectedCoordinate]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -174,7 +189,9 @@ export function GamePrototype() {
     return <main className="grid min-h-dvh place-items-center bg-slate-950 text-slate-200">공동 플레이에 연결하는 중입니다…</main>;
   }
 
-  const supportedIdol = gameState.idols[gameState.supportedIdolId];
+  const supportedIdol = personalSupportedIdolId
+    ? gameState.idols[personalSupportedIdolId]
+    : undefined;
   const realtimeLabels = {
     connecting: "연결 중",
     connected: "실시간 연결됨",
@@ -191,8 +208,10 @@ export function GamePrototype() {
     <main className="flex min-h-dvh flex-col bg-slate-950 text-slate-100 lg:h-dvh lg:overflow-hidden">
       <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-800 px-4 py-3 sm:px-5">
         <div><p className="text-xs font-semibold tracking-[0.22em] text-rose-400 uppercase">Pixel Idol</p><h1 className="mt-1 text-xl font-black sm:text-2xl">아이돌 픽셀</h1></div>
-        <IdolSelector idols={idols} selectedId={gameState.supportedIdolId} onChange={handleIdolChange} />
-        <TerritorySummaryPanel idol={supportedIdol} summary={supportedSummary} />
+        <IdolSelector idols={idols} selectedId={personalSupportedIdolId} onChange={handleIdolChange} />
+        {remote.isAuthenticated && supportedIdol
+          ? <TerritorySummaryPanel idol={supportedIdol} summary={supportedSummary} />
+          : null}
         <div className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs">
           <span className={`size-2.5 rounded-full ${realtimeColors[remote.realtimeStatus]}`} aria-hidden="true" />
           <span className="font-semibold text-slate-200">{realtimeLabels[remote.realtimeStatus]}</span>
@@ -205,10 +224,16 @@ export function GamePrototype() {
             {remote.isSynchronizing ? "동기화 중" : "동기화"}
           </button>
         </div>
-        <div className="flex items-center gap-3 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2">
-          <span className="size-3 rounded-full" style={{ backgroundColor: supportedIdol?.color }} aria-hidden="true" />
-          <div className="text-right"><p className="text-xs text-slate-500">응원 중</p><p className="text-sm font-bold">{supportedIdol?.name}</p></div>
-        </div>
+        {remote.isAuthenticated && supportedIdol ? (
+          <div className="flex items-center gap-3 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2">
+            <span className="size-3 rounded-full" style={{ backgroundColor: supportedIdol.color }} aria-hidden="true" />
+            <div className="text-right"><p className="text-xs text-slate-500">응원 중</p><p className="text-sm font-bold">{supportedIdol.name}</p></div>
+          </div>
+        ) : remote.authStatus === "unauthenticated" ? (
+          <p className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-xs text-slate-300">
+            로그인 후 응원 아이돌을 선택할 수 있습니다.
+          </p>
+        ) : null}
         <nav className="flex items-center gap-2 text-xs font-bold">
           <Link href="/help" className="rounded-lg border border-slate-700 px-3 py-2 hover:bg-slate-800">? 도움말</Link>
           {remote.isAuthenticated && remote.profile && remote.player ? <><span className="hidden text-slate-300 sm:inline">{remote.profile.nickname}</span><button ref={myPageButtonRef} type="button" onClick={() => setIsMyPageOpen(true)} className="rounded-lg bg-slate-700 px-3 py-2 hover:bg-slate-600">마이페이지</button></> : <><Link href="/login" className="rounded-lg bg-rose-500 px-3 py-2">로그인</Link><Link href="/signup" className="rounded-lg border border-slate-600 px-3 py-2">회원가입</Link></>}
@@ -216,17 +241,17 @@ export function GamePrototype() {
       </header>
       <section className="grid min-w-0 flex-1 gap-3 p-3 sm:p-4 lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_288px]">
         <div className="relative h-[65dvh] min-h-0 min-w-0 overflow-hidden rounded-2xl border border-slate-700 bg-slate-950 shadow-2xl shadow-black/30 lg:h-full">
-          <TileMapCanvas state={gameState} selectedCoordinate={selectedCoordinate} initialFocusWorldPoint={territoryCenter} actionableTiles={actionableTiles} representativeBoundary={representativeBoundary} representativeLayerSpecs={representativeLayerSpecs} onSelect={handleSelect} />
+          <TileMapCanvas state={gameState} selectedCoordinate={selectedCoordinate} initialFocusWorldPoint={territoryCenter} actionableTiles={actionableTiles} representativeBoundary={representativeBoundary} representativeLayerSpecs={representativeLayerSpecs} showPersonalNavigation={remote.isAuthenticated} onSelect={handleSelect} />
         </div>
         <div className="grid min-h-0 gap-3 overflow-y-auto">
-          <TileInfoPanel selectedTile={selectedTile} owner={selectedOwner} tokens={gameState.tokens} preview={actionPreview} actionMessage={actionMessage} isPending={remote.isPending} isAuthenticated={remote.isAuthenticated} onAction={() => void handleAction()} onClear={handleClear} />
+          <TileInfoPanel selectedTile={selectedTile} owner={selectedOwner} tokens={remote.isAuthenticated ? remote.player?.tokens ?? null : null} preview={actionPreview} actionMessage={actionMessage} isPending={remote.isPending} isAuthenticated={remote.isAuthenticated} onAction={() => void handleAction()} onClear={handleClear} />
           {supportedIdol && remote.isAuthenticated ? <IdolImageUploadPanel idol={supportedIdol} isUploading={remote.isUploadingImage} onSubmit={remote.submitIdolImage} /> : <section className="rounded-2xl border border-slate-700 bg-slate-900 p-4 text-sm text-slate-300"><p>로그인 후 이용할 수 있습니다.</p><p className="mt-1 text-xs text-slate-500">점령, 공격, 응원 아이돌 변경과 이미지 업로드는 로그인이 필요합니다.</p><div className="mt-3 flex gap-3"><Link href="/login" className="font-bold text-rose-300">로그인</Link><Link href="/signup" className="font-bold text-slate-200">회원가입</Link></div></section>}
         </div>
       </section>
       <p className="shrink-0 border-t border-slate-800 px-4 py-2 text-center text-[11px] text-slate-500">
         공개 데모의 안정성을 위해 행동 간 짧은 대기 시간이 적용됩니다. · 본 서비스는 비공식 팬 제작 프로토타입이며 각 아티스트 및 소속사와 관련이 없습니다. 현재 대표 이미지는 직접 제작한 워드마크 목업입니다.
       </p>
-      {isMyPageOpen && remote.profile && remote.player ? <MyPageModal profile={remote.profile} player={remote.player} idols={idols} supportedIdol={supportedIdol} factionTerritoryCount={factionTerritoryCount} isAdmin={remote.isAdmin} onClose={closeMyPage} onChangeIdol={remote.changeSupportedIdol} onLogout={async () => { await remote.logout(); closeMyPage(); }} /> : null}
+      {remote.isAuthenticated && isMyPageOpen && remote.profile && remote.player ? <MyPageModal profile={remote.profile} player={remote.player} idols={idols} supportedIdol={supportedIdol} factionTerritoryCount={factionTerritoryCount} isAdmin={remote.isAdmin} onClose={closeMyPage} onChangeIdol={remote.changeSupportedIdol} onLogout={async () => { await remote.logout(); closeMyPage(); }} /> : null}
     </main>
   );
 }

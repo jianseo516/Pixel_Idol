@@ -23,6 +23,7 @@ interface TileMapCanvasProps {
   readonly representativeBoundary: readonly TerritoryBoundarySegment[];
   readonly representativeLayerSpecs: readonly RepresentativeCanvasLayerSpec[];
   readonly onSelect: (coordinate: Coordinate) => void;
+  readonly showPersonalNavigation?: boolean;
 }
 
 const NAVIGATION_BUTTON_CLASS =
@@ -36,6 +37,7 @@ export function TileMapCanvas({
   representativeBoundary,
   representativeLayerSpecs,
   onSelect,
+  showPersonalNavigation = true,
 }: TileMapCanvasProps) {
   const [showActionHighlights, setShowActionHighlights] = useState(true);
   const representativeLayers = useRepresentativeImages(
@@ -159,7 +161,7 @@ export function TileMapCanvas({
         <span className="hidden px-1.5 text-xs text-slate-300 sm:inline">
           드래그로 이동 · 휠로 확대/축소
         </span>
-        <button
+        {showPersonalNavigation ? <button
           type="button"
           className={`${NAVIGATION_BUTTON_CLASS} ${
             isOverview ? "border-rose-400/80 text-rose-200" : ""
@@ -168,7 +170,7 @@ export function TileMapCanvas({
           onClick={controls.showOverview}
         >
           전체 보기
-        </button>
+        </button> : null}
         <button
           type="button"
           className={NAVIGATION_BUTTON_CLASS}
