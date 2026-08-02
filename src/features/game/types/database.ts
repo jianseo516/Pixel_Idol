@@ -1,0 +1,38 @@
+export interface SeasonRow {
+  readonly id: string;
+  readonly name: string;
+  readonly starts_at: string;
+  readonly ends_at: string;
+  readonly status: "active" | "ended";
+  readonly map_width: number;
+  readonly map_height: number;
+}
+
+export interface IdolRow {
+  readonly id: string;
+  readonly name: string;
+  readonly color: string;
+  readonly representative_image_src: string;
+}
+
+export interface TileRow {
+  readonly season_id: string;
+  readonly x: number;
+  readonly y: number;
+  readonly owner_id: string;
+  readonly hp: number;
+}
+
+export interface PlayerRow {
+  readonly season_id: string;
+  readonly user_id: string;
+  readonly supported_idol_id: string;
+  readonly tokens: number;
+}
+
+export interface GameSnapshotRows {
+  readonly season: SeasonRow;
+  readonly idols: readonly IdolRow[];
+  readonly tiles: readonly TileRow[];
+  readonly player: PlayerRow;
+}
