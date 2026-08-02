@@ -56,6 +56,22 @@ export interface TileActionError {
   readonly message: string;
 }
 
+export type TileActionType = "CLAIM" | "ATTACK" | "NONE";
+
+export interface TileActionPreview {
+  readonly actionType: TileActionType;
+  readonly allowed: boolean;
+  readonly cost: number | null;
+  readonly label: string;
+  readonly reasonCode: TileActionErrorCode | null;
+  readonly reasonMessage: string | null;
+}
+
+export interface ActionableTiles {
+  readonly claimable: readonly Coordinate[];
+  readonly attackable: readonly Coordinate[];
+}
+
 export type TileActionResult =
   | {
       readonly ok: true;

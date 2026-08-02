@@ -10,6 +10,7 @@ export const GAME_CONFIG = {
   defaultTileDisplaySize: 32,
   minZoom: 0.2,
   maxZoom: 4,
+  actionHighlightMinZoom: 0.55,
   wheelZoomIntensity: 0.0015,
   maxWheelDelta: 120,
   dragThreshold: 5,

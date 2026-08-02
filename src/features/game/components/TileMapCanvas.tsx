@@ -1,17 +1,22 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { GameMinimap } from "@/features/game/components/GameMinimap";
 import { useCanvasViewport } from "@/features/game/hooks/useCanvasViewport";
 import { renderGameMap } from "@/features/game/rendering/canvasRenderer";
-import type { Coordinate, GameState } from "@/features/game/types/game";
+import type {
+  ActionableTiles,
+  Coordinate,
+  GameState,
+} from "@/features/game/types/game";
 import type { Point } from "@/features/game/types/viewport";
 
 interface TileMapCanvasProps {
   readonly state: GameState;
   readonly selectedCoordinate: Coordinate | null;
   readonly initialFocusWorldPoint: Point;
+  readonly actionableTiles: ActionableTiles;
   readonly onSelect: (coordinate: Coordinate) => void;
 }
 
@@ -22,8 +27,10 @@ export function TileMapCanvas({
   state,
   selectedCoordinate,
   initialFocusWorldPoint,
+  actionableTiles,
   onSelect,
 }: TileMapCanvasProps) {
+  const [showActionHighlights, setShowActionHighlights] = useState(true);
   const {
     canvasRef,
     viewport,
@@ -51,12 +58,22 @@ export function TileMapCanvas({
         state,
         viewport,
         selectedCoordinate,
+        actionableTiles,
+        showActionHighlights,
         pixelRatio,
       });
     });
 
     return () => cancelAnimationFrame(frameId);
-  }, [canvasRef, pixelRatio, selectedCoordinate, state, viewport]);
+  }, [
+    actionableTiles,
+    canvasRef,
+    pixelRatio,
+    selectedCoordinate,
+    showActionHighlights,
+    state,
+    viewport,
+  ]);
 
   return (
     <>
@@ -76,6 +93,32 @@ export function TileMapCanvas({
         viewport={viewport}
         onNavigate={controls.navigateToWorldPoint}
       />
+
+      <div className="absolute top-3 right-3 z-10 rounded-xl border border-white/15 bg-slate-950/85 p-2.5 text-[11px] text-slate-200 shadow-lg backdrop-blur">
+        <label className="flex cursor-pointer items-center gap-2 font-semibold">
+          <input
+            type="checkbox"
+            checked={showActionHighlights}
+            onChange={(event) => setShowActionHighlights(event.target.checked)}
+            className="size-3.5 accent-teal-400"
+          />
+          행동 가능 타일 표시
+        </label>
+        <div className="mt-2 grid gap-1 text-slate-300" aria-label="지도 범례">
+          <span className="flex items-center gap-2">
+            <span className="size-3 border-2 border-teal-400 bg-teal-400/15" />
+            점령 가능
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="size-3 border-2 border-orange-400 bg-orange-400/15" />
+            공격 가능
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="size-3 border-2 border-white" />
+            선택한 타일
+          </span>
+        </div>
+      </div>
 
       <div className="absolute right-3 bottom-3 z-10 flex items-center gap-1.5 rounded-xl border border-white/15 bg-slate-950/85 p-1.5 shadow-lg backdrop-blur">
         <span className="hidden px-1.5 text-xs text-slate-300 sm:inline">

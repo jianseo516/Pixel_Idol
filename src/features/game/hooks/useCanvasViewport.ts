@@ -93,6 +93,10 @@ export function useCanvasViewport({
   const [isDragging, setIsDragging] = useState(false);
   const [isOverview, setIsOverview] = useState(false);
 
+  useEffect(() => {
+    initialFocusRef.current = initialFocusWorldPoint;
+  }, [initialFocusWorldPoint]);
+
   const setViewport = useCallback((next: Viewport) => {
     viewportRef.current = next;
     setViewportState(next);

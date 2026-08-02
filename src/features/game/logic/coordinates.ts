@@ -47,7 +47,11 @@ export function createTileId(
   seasonId: string,
   coordinate: Coordinate,
 ): string {
-  return `${seasonId}:${coordinate.x},${coordinate.y}`;
+  return `${seasonId}:${createCoordinateKey(coordinate)}`;
+}
+
+export function createCoordinateKey(coordinate: Coordinate): string {
+  return `${coordinate.x},${coordinate.y}`;
 }
 
 export function getTile(
