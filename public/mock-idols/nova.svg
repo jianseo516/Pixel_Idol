@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" role="img" aria-labelledby="title">
+  <title id="title">노바 대표 포스터</title>
+  <rect width="600" height="600" fill="#1d4ed8"/>
+  <path d="m300 105 45 138 145 2-116 85 43 139-117-83-117 83 43-139-116-85 145-2z" fill="#93c5fd"/>
+  <text x="300" y="535" fill="#ffffff" font-family="sans-serif" font-size="78" font-weight="800" text-anchor="middle">NOVA</text>
+</svg>

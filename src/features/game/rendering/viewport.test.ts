@@ -5,9 +5,11 @@ import {
   constrainViewport,
   createFittedViewport,
   createInitialViewport,
+  ensureTileVisible,
   getOwnedTerritoryWorldCenter,
   getVisibleTileRange,
   getWheelZoom,
+  moveSelectedCoordinate,
   resizeViewport,
   screenToTile,
   screenToWorld,
@@ -109,6 +111,62 @@ describe("viewport coordinate conversions", () => {
 });
 
 describe("viewport navigation", () => {
+  it("moves a selected tile in all four keyboard directions", () => {
+    expect(moveSelectedCoordinate({ x: 5, y: 5 }, "ArrowUp")).toEqual({ x: 5, y: 4 });
+    expect(moveSelectedCoordinate({ x: 5, y: 5 }, "ArrowDown")).toEqual({ x: 5, y: 6 });
+    expect(moveSelectedCoordinate({ x: 5, y: 5 }, "ArrowLeft")).toEqual({ x: 4, y: 5 });
+    expect(moveSelectedCoordinate({ x: 5, y: 5 }, "ArrowRight")).toEqual({ x: 6, y: 5 });
+  });
+
+  it("does not move without a selection or beyond map boundaries", () => {
+    expect(moveSelectedCoordinate(null, "ArrowRight")).toBeNull();
+    const topLeft = { x: 0, y: 0 };
+    const bottomRight = { x: GAME_CONFIG.mapWidth - 1, y: GAME_CONFIG.mapHeight - 1 };
+    expect(moveSelectedCoordinate(topLeft, "ArrowUp")).toBe(topLeft);
+    expect(moveSelectedCoordinate(topLeft, "ArrowLeft")).toBe(topLeft);
+    expect(moveSelectedCoordinate(bottomRight, "ArrowDown")).toBe(bottomRight);
+    expect(moveSelectedCoordinate(bottomRight, "ArrowRight")).toBe(bottomRight);
+  });
+
+  it("keeps an already visible tile without changing the viewport", () => {
+    const viewport = { ...BASE_VIEWPORT, width: 560, height: 280 };
+    expect(ensureTileVisible(viewport, { x: 5, y: 5 })).toBe(viewport);
+  });
+
+  it.each([
+    [{ x: 0, y: 5 }, "offsetX"],
+    [{ x: 19, y: 5 }, "offsetX"],
+    [{ x: 5, y: 0 }, "offsetY"],
+    [{ x: 5, y: 9 }, "offsetY"],
+  ] as const)("minimally reveals a tile outside each edge: %o", (coordinate, changedAxis) => {
+    const viewport: Viewport = {
+      width: 280,
+      height: 196,
+      zoom: 1,
+      offsetX: -GAME_CONFIG.tileSize * 5,
+      offsetY: -GAME_CONFIG.tileSize * 3,
+    };
+    const result = ensureTileVisible(viewport, coordinate);
+    expect(result[changedAxis]).not.toBe(viewport[changedAxis]);
+    const screen = tileToScreen(coordinate, result);
+    expect(screen.x + GAME_CONFIG.tileSize).toBeGreaterThan(0);
+    expect(screen.x).toBeLessThan(result.width);
+    expect(screen.y + GAME_CONFIG.tileSize).toBeGreaterThan(0);
+    expect(screen.y).toBeLessThan(result.height);
+  });
+
+  it("constrains viewport movement and preserves inputs in a rectangular canvas", () => {
+    const viewport = Object.freeze({
+      width: 1200, height: 650, zoom: 1, offsetX: -500, offsetY: -300,
+    });
+    const coordinate = Object.freeze({ x: 89, y: 53 });
+    const next = ensureTileVisible(viewport, coordinate);
+    const constrained = constrainViewport(next);
+    expect(next).toEqual(constrained);
+    expect(viewport).toEqual({ width: 1200, height: 650, zoom: 1, offsetX: -500, offsetY: -300 });
+    expect(coordinate).toEqual({ x: 89, y: 53 });
+  });
+
   it("uses a large landscape map that exceeds a laptop viewport", () => {
     const displayedWidth =
       GAME_CONFIG.mapWidth * GAME_CONFIG.defaultTileDisplaySize;

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { GameMinimap } from "@/features/game/components/GameMinimap";
 import { useCanvasViewport } from "@/features/game/hooks/useCanvasViewport";
+import { useRepresentativeImages } from "@/features/game/hooks/useRepresentativeImages";
 import { renderGameMap } from "@/features/game/rendering/canvasRenderer";
 import type {
   ActionableTiles,
@@ -12,6 +13,7 @@ import type {
   TerritoryBoundarySegment,
 } from "@/features/game/types/game";
 import type { Point } from "@/features/game/types/viewport";
+import type { RepresentativeCanvasLayerSpec } from "@/features/game/types/representative";
 
 interface TileMapCanvasProps {
   readonly state: GameState;
@@ -19,6 +21,7 @@ interface TileMapCanvasProps {
   readonly initialFocusWorldPoint: Point;
   readonly actionableTiles: ActionableTiles;
   readonly representativeBoundary: readonly TerritoryBoundarySegment[];
+  readonly representativeLayerSpecs: readonly RepresentativeCanvasLayerSpec[];
   readonly onSelect: (coordinate: Coordinate) => void;
 }
 
@@ -31,9 +34,13 @@ export function TileMapCanvas({
   initialFocusWorldPoint,
   actionableTiles,
   representativeBoundary,
+  representativeLayerSpecs,
   onSelect,
 }: TileMapCanvasProps) {
   const [showActionHighlights, setShowActionHighlights] = useState(true);
+  const representativeLayers = useRepresentativeImages(
+    representativeLayerSpecs,
+  );
   const {
     canvasRef,
     viewport,
@@ -44,6 +51,7 @@ export function TileMapCanvas({
     controls,
   } = useCanvasViewport({
     onSelect,
+    selectedCoordinate,
     initialFocusWorldPoint,
     mapSize: state.mapSize,
   });
@@ -63,6 +71,7 @@ export function TileMapCanvas({
         selectedCoordinate,
         actionableTiles,
         representativeBoundary,
+        representativeLayers,
         showActionHighlights,
         pixelRatio,
       });
@@ -74,6 +83,7 @@ export function TileMapCanvas({
     canvasRef,
     pixelRatio,
     representativeBoundary,
+    representativeLayers,
     selectedCoordinate,
     showActionHighlights,
     state,
@@ -84,7 +94,8 @@ export function TileMapCanvas({
     <>
       <canvas
         ref={canvasRef}
-        className={`block h-full w-full touch-none select-none ${
+        tabIndex={0}
+        className={`block h-full w-full touch-none select-none focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-rose-400 ${
           isDragging ? "cursor-grabbing" : "cursor-grab"
         }`}
         aria-label="아이돌 픽셀 영토 지도"

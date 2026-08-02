@@ -12,6 +12,7 @@ export interface Idol {
   readonly id: string;
   readonly name: string;
   readonly color: string;
+  readonly representativeImageSrc: string;
 }
 
 export type SeasonStatus = "active" | "ended";

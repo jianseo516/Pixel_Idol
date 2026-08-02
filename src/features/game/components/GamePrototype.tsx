@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { IdolSelector } from "@/features/game/components/IdolSelector";
 import {
@@ -18,6 +18,7 @@ import { getAllIdolTerritorySummaries } from "@/features/game/logic/territories"
 import { getTerritoryBoundarySegments } from "@/features/game/logic/territoryBoundary";
 import { createInitialGameState } from "@/features/game/mock/createInitialGame";
 import { getOwnedTerritoryWorldCenter } from "@/features/game/rendering/viewport";
+import { createRepresentativeLayerSpecs } from "@/features/game/rendering/representativeImage";
 import type { Coordinate, Idol } from "@/features/game/types/game";
 
 export function GamePrototype() {
@@ -66,6 +67,10 @@ export function GamePrototype() {
         supportedTerritorySummary.largestRegion?.coordinates ?? [],
       ),
     [supportedTerritorySummary],
+  );
+  const representativeLayerSpecs = useMemo(
+    () => createRepresentativeLayerSpecs(territorySummaries, gameState.idols),
+    [gameState.idols, territorySummaries],
   );
 
   const handleSelect = useCallback((coordinate: Coordinate) => {
@@ -119,6 +124,28 @@ export function GamePrototype() {
     });
   }, [actionPreview, gameState, selectedCoordinate]);
 
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Enter" || event.repeat || !actionPreview?.allowed) {
+        return;
+      }
+
+      const target = event.target;
+      if (
+        target instanceof Element &&
+        target.closest("button, input, select, textarea, [contenteditable='true']")
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      handleAction();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [actionPreview?.allowed, handleAction]);
+
   return (
     <main className="flex min-h-dvh flex-col bg-slate-950 text-slate-100 lg:h-dvh lg:overflow-hidden">
       <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-800 px-4 py-3 sm:px-5">
@@ -163,6 +190,7 @@ export function GamePrototype() {
             initialFocusWorldPoint={territoryCenter}
             actionableTiles={actionableTiles}
             representativeBoundary={representativeBoundary}
+            representativeLayerSpecs={representativeLayerSpecs}
             onSelect={handleSelect}
           />
         </div>

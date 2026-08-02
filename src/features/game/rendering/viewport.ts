@@ -87,6 +87,69 @@ export function tileToScreen(
   return worldToScreen(tileToWorld(coordinate), viewport);
 }
 
+export type TileNavigationKey =
+  | "ArrowUp"
+  | "ArrowDown"
+  | "ArrowLeft"
+  | "ArrowRight";
+
+export function moveSelectedCoordinate(
+  coordinate: Coordinate | null,
+  key: TileNavigationKey,
+  mapSize: MapSize = DEFAULT_MAP_SIZE,
+): Coordinate | null {
+  if (!coordinate) {
+    return null;
+  }
+  const delta = {
+    ArrowUp: { x: 0, y: -1 },
+    ArrowDown: { x: 0, y: 1 },
+    ArrowLeft: { x: -1, y: 0 },
+    ArrowRight: { x: 1, y: 0 },
+  }[key];
+  const next = { x: coordinate.x + delta.x, y: coordinate.y + delta.y };
+  return next.x >= 0 && next.y >= 0 && next.x < mapSize.width && next.y < mapSize.height
+    ? next
+    : coordinate;
+}
+
+export function ensureTileVisible(
+  viewport: Viewport,
+  coordinate: Coordinate,
+  mapSize: MapSize = DEFAULT_MAP_SIZE,
+  marginInTiles = 1,
+): Viewport {
+  const tileSize = GAME_CONFIG.tileSize * viewport.zoom;
+  const requestedMargin = Math.max(0, marginInTiles) * tileSize;
+  const horizontalMargin = Math.min(
+    requestedMargin,
+    Math.max((viewport.width - tileSize) / 2, 0),
+  );
+  const verticalMargin = Math.min(
+    requestedMargin,
+    Math.max((viewport.height - tileSize) / 2, 0),
+  );
+  const screen = tileToScreen(coordinate, viewport);
+  let offsetX = viewport.offsetX;
+  let offsetY = viewport.offsetY;
+
+  if (screen.x < horizontalMargin) {
+    offsetX += horizontalMargin - screen.x;
+  } else if (screen.x + tileSize > viewport.width - horizontalMargin) {
+    offsetX -= screen.x + tileSize - (viewport.width - horizontalMargin);
+  }
+  if (screen.y < verticalMargin) {
+    offsetY += verticalMargin - screen.y;
+  } else if (screen.y + tileSize > viewport.height - verticalMargin) {
+    offsetY -= screen.y + tileSize - (viewport.height - verticalMargin);
+  }
+
+  if (offsetX === viewport.offsetX && offsetY === viewport.offsetY) {
+    return viewport;
+  }
+  return constrainViewport({ ...viewport, offsetX, offsetY }, mapSize);
+}
+
 export function getVisibleTileRange(
   viewport: Viewport,
   mapSize: MapSize = DEFAULT_MAP_SIZE,

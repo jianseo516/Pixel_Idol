@@ -10,9 +10,24 @@ import type {
 } from "@/features/game/types/game";
 
 export const MOCK_IDOLS = [
-  { id: "lumi", name: "루미", color: "#F43F5E" },
-  { id: "nova", name: "노바", color: "#3B82F6" },
-  { id: "muse", name: "뮤즈", color: "#22C55E" },
+  {
+    id: "lumi",
+    name: "루미",
+    color: "#F43F5E",
+    representativeImageSrc: "/mock-idols/lumi.svg",
+  },
+  {
+    id: "nova",
+    name: "노바",
+    color: "#3B82F6",
+    representativeImageSrc: "/mock-idols/nova.svg",
+  },
+  {
+    id: "muse",
+    name: "뮤즈",
+    color: "#22C55E",
+    representativeImageSrc: "/mock-idols/muse.svg",
+  },
 ] as const satisfies readonly Idol[];
 
 export const MOCK_SEASON: Season = {

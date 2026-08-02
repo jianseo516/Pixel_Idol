@@ -3,7 +3,9 @@ import { getStoredTile } from "@/features/game/logic/coordinates";
 import {
   getVisibleTileRange,
   tileToScreen,
+  worldToScreen,
 } from "@/features/game/rendering/viewport";
+import { getRepresentativeDamageOpacity } from "@/features/game/rendering/representativeImage";
 import type {
   ActionableTiles,
   Coordinate,
@@ -15,6 +17,7 @@ import type {
   Viewport,
   VisibleTileRange,
 } from "@/features/game/types/viewport";
+import type { RepresentativeCanvasLayer } from "@/features/game/types/representative";
 
 const EMPTY_TILE_COLOR = "#202633";
 const MAP_BACKGROUND_COLOR = "#10141d";
@@ -35,8 +38,103 @@ interface RenderGameMapOptions {
   readonly selectedCoordinate: Coordinate | null;
   readonly actionableTiles: ActionableTiles;
   readonly representativeBoundary: readonly TerritoryBoundarySegment[];
+  readonly representativeLayers: readonly RepresentativeCanvasLayer[];
   readonly showActionHighlights: boolean;
   readonly pixelRatio: number;
+}
+
+function isCoordinateVisible(
+  coordinate: Coordinate,
+  range: VisibleTileRange,
+): boolean {
+  return (
+    coordinate.x >= range.startX &&
+    coordinate.x < range.endX &&
+    coordinate.y >= range.startY &&
+    coordinate.y < range.endY
+  );
+}
+
+function drawRepresentativeLayers(
+  context: CanvasRenderingContext2D,
+  layers: readonly RepresentativeCanvasLayer[],
+  viewport: Viewport,
+  range: VisibleTileRange,
+  tileScreenSize: number,
+): void {
+  if (viewport.zoom < GAME_CONFIG.representativeImageMinZoom) {
+    return;
+  }
+
+  for (const layer of layers) {
+    context.save();
+    context.beginPath();
+    let hasVisibleCoordinate = false;
+    for (const coordinate of layer.coordinates) {
+      if (!isCoordinateVisible(coordinate, range)) {
+        continue;
+      }
+      hasVisibleCoordinate = true;
+      const screen = tileToScreen(coordinate, viewport);
+      context.rect(screen.x, screen.y, tileScreenSize, tileScreenSize);
+    }
+    if (!hasVisibleCoordinate) {
+      context.restore();
+      continue;
+    }
+
+    context.clip();
+    const placement = layer.slot;
+    const destination = worldToScreen(
+      { x: placement.destination.x, y: placement.destination.y },
+      viewport,
+    );
+    context.globalAlpha = layer.opacity;
+    context.drawImage(
+      layer.image,
+      0,
+      0,
+      layer.imageWidth,
+      layer.imageHeight,
+      destination.x,
+      destination.y,
+      placement.destination.width * viewport.zoom,
+      placement.destination.height * viewport.zoom,
+    );
+    context.restore();
+  }
+}
+
+function drawRepresentativeDamage(
+  context: CanvasRenderingContext2D,
+  state: GameState,
+  layers: readonly RepresentativeCanvasLayer[],
+  viewport: Viewport,
+  range: VisibleTileRange,
+  tileScreenSize: number,
+): void {
+  if (viewport.zoom < GAME_CONFIG.representativeImageMinZoom) {
+    return;
+  }
+
+  for (const layer of layers) {
+    for (const coordinate of layer.coordinates) {
+      if (!isCoordinateVisible(coordinate, range)) {
+        continue;
+      }
+      const tile = getStoredTile(state, coordinate);
+      if (!tile) {
+        continue;
+      }
+      const opacity = getRepresentativeDamageOpacity(tile.hp);
+      if (opacity <= 0) {
+        continue;
+      }
+      const screen = tileToScreen(coordinate, viewport);
+      context.fillStyle = `rgba(2, 6, 23, ${opacity})`;
+      context.fillRect(screen.x, screen.y, tileScreenSize, tileScreenSize);
+    }
+  }
 }
 
 function drawRepresentativeBoundary(
@@ -143,6 +241,7 @@ export function renderGameMap({
   selectedCoordinate,
   actionableTiles,
   representativeBoundary,
+  representativeLayers,
   showActionHighlights,
   pixelRatio,
 }: RenderGameMapOptions): void {
@@ -154,9 +253,6 @@ export function renderGameMap({
   const tileScreenSize = GAME_CONFIG.tileSize * viewport.zoom;
   const range = getVisibleTileRange(viewport, state.mapSize);
 
-  context.lineWidth = 1;
-  context.strokeStyle = GRID_COLOR;
-
   for (let y = range.startY; y < range.endY; y += 1) {
     for (let x = range.startX; x < range.endX; x += 1) {
       const coordinate = { x, y };
@@ -165,6 +261,30 @@ export function renderGameMap({
       const screen = tileToScreen(coordinate, viewport);
       context.fillStyle = tile ? getTileColor(tile, state) : EMPTY_TILE_COLOR;
       context.fillRect(screen.x, screen.y, tileScreenSize, tileScreenSize);
+    }
+  }
+
+  drawRepresentativeLayers(
+    context,
+    representativeLayers,
+    viewport,
+    range,
+    tileScreenSize,
+  );
+  drawRepresentativeDamage(
+    context,
+    state,
+    representativeLayers,
+    viewport,
+    range,
+    tileScreenSize,
+  );
+
+  context.lineWidth = 1;
+  context.strokeStyle = GRID_COLOR;
+  for (let y = range.startY; y < range.endY; y += 1) {
+    for (let x = range.startX; x < range.endX; x += 1) {
+      const screen = tileToScreen({ x, y }, viewport);
       context.strokeRect(screen.x, screen.y, tileScreenSize, tileScreenSize);
     }
   }

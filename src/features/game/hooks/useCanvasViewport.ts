@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
   type WheelEvent as ReactWheelEvent,
 } from "react";
 
@@ -16,6 +17,8 @@ import {
   createInitialViewport,
   getWheelZoom,
   panViewport,
+  ensureTileVisible,
+  moveSelectedCoordinate,
   resizeViewport,
   screenToTile,
   tileToWorld,
@@ -33,6 +36,7 @@ interface DragState {
 
 interface UseCanvasViewportOptions {
   readonly onSelect: (coordinate: Coordinate) => void;
+  readonly selectedCoordinate: Coordinate | null;
   readonly initialFocusWorldPoint: Point;
   readonly mapSize: MapSize;
 }
@@ -44,6 +48,7 @@ interface CanvasViewportHandlers {
   readonly onPointerCancel: (event: ReactPointerEvent<HTMLCanvasElement>) => void;
   readonly onLostPointerCapture: () => void;
   readonly onWheel: (event: ReactWheelEvent<HTMLCanvasElement>) => void;
+  readonly onKeyDown: (event: ReactKeyboardEvent<HTMLCanvasElement>) => void;
 }
 
 export interface CanvasViewportControls {
@@ -71,6 +76,7 @@ function getCanvasPoint(
 
 export function useCanvasViewport({
   onSelect,
+  selectedCoordinate,
   initialFocusWorldPoint,
   mapSize,
 }: UseCanvasViewportOptions): {
@@ -190,6 +196,7 @@ export function useCanvasViewport({
       }
 
       event.preventDefault();
+      event.currentTarget.focus({ preventScroll: true });
       const startPoint = getCanvasPoint(
         event.currentTarget,
         event.clientX,
@@ -267,6 +274,35 @@ export function useCanvasViewport({
     [mapSize, setOverview, setViewport],
   );
 
+  const onKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLCanvasElement>) => {
+      if (
+        event.key !== "ArrowUp" &&
+        event.key !== "ArrowDown" &&
+        event.key !== "ArrowLeft" &&
+        event.key !== "ArrowRight"
+      ) {
+        return;
+      }
+      const nextCoordinate = moveSelectedCoordinate(
+        selectedCoordinate,
+        event.key,
+        mapSize,
+      );
+      if (!nextCoordinate || nextCoordinate === selectedCoordinate) {
+        return;
+      }
+
+      event.preventDefault();
+      setOverview(false);
+      setViewport(
+        ensureTileVisible(viewportRef.current, nextCoordinate, mapSize),
+      );
+      onSelect(nextCoordinate);
+    },
+    [mapSize, onSelect, selectedCoordinate, setOverview, setViewport],
+  );
+
   const showOverview = useCallback(() => {
     setViewport(
       createFittedViewport(
@@ -313,6 +349,7 @@ export function useCanvasViewport({
       onPointerCancel,
       onLostPointerCapture,
       onWheel,
+      onKeyDown,
     },
     controls: {
       showOverview,
