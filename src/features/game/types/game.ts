@@ -72,6 +72,35 @@ export interface ActionableTiles {
   readonly attackable: readonly Coordinate[];
 }
 
+export interface TerritoryBounds {
+  readonly minX: number;
+  readonly minY: number;
+  readonly maxX: number;
+  readonly maxY: number;
+}
+
+export interface TerritoryRegion {
+  readonly id: string;
+  readonly ownerId: Idol["id"];
+  readonly coordinates: readonly Coordinate[];
+  readonly size: number;
+  readonly bounds: TerritoryBounds;
+}
+
+export interface IdolTerritorySummary {
+  readonly ownerId: Idol["id"];
+  readonly regions: readonly TerritoryRegion[];
+  readonly largestRegion: TerritoryRegion | null;
+  readonly totalTileCount: number;
+}
+
+export type TerritoryBoundarySide = "TOP" | "RIGHT" | "BOTTOM" | "LEFT";
+
+export interface TerritoryBoundarySegment {
+  readonly coordinate: Coordinate;
+  readonly side: TerritoryBoundarySide;
+}
+
 export type TileActionResult =
   | {
       readonly ok: true;

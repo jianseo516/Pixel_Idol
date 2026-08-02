@@ -8,6 +8,7 @@ import type {
   ActionableTiles,
   Coordinate,
   GameState,
+  TerritoryBoundarySegment,
   Tile,
 } from "@/features/game/types/game";
 import type {
@@ -24,6 +25,8 @@ const CLAIMABLE_FILL = "rgba(45, 212, 191, 0.14)";
 const CLAIMABLE_STROKE = "rgba(45, 212, 191, 0.95)";
 const ATTACKABLE_FILL = "rgba(251, 146, 60, 0.14)";
 const ATTACKABLE_STROKE = "rgba(251, 146, 60, 0.98)";
+const REPRESENTATIVE_BORDER = "rgba(253, 224, 71, 0.98)";
+const REPRESENTATIVE_BORDER_BACKDROP = "rgba(15, 23, 42, 0.95)";
 
 interface RenderGameMapOptions {
   readonly context: CanvasRenderingContext2D;
@@ -31,8 +34,55 @@ interface RenderGameMapOptions {
   readonly viewport: Viewport;
   readonly selectedCoordinate: Coordinate | null;
   readonly actionableTiles: ActionableTiles;
+  readonly representativeBoundary: readonly TerritoryBoundarySegment[];
   readonly showActionHighlights: boolean;
   readonly pixelRatio: number;
+}
+
+function drawRepresentativeBoundary(
+  context: CanvasRenderingContext2D,
+  segments: readonly TerritoryBoundarySegment[],
+  viewport: Viewport,
+  range: VisibleTileRange,
+  tileScreenSize: number,
+): void {
+  context.beginPath();
+  for (const segment of segments) {
+    const { coordinate } = segment;
+    if (
+      coordinate.x < range.startX ||
+      coordinate.x >= range.endX ||
+      coordinate.y < range.startY ||
+      coordinate.y >= range.endY
+    ) {
+      continue;
+    }
+    const screen = tileToScreen(coordinate, viewport);
+    const left = screen.x;
+    const top = screen.y;
+    const right = left + tileScreenSize;
+    const bottom = top + tileScreenSize;
+    if (segment.side === "TOP") {
+      context.moveTo(left, top);
+      context.lineTo(right, top);
+    } else if (segment.side === "RIGHT") {
+      context.moveTo(right, top);
+      context.lineTo(right, bottom);
+    } else if (segment.side === "BOTTOM") {
+      context.moveTo(left, bottom);
+      context.lineTo(right, bottom);
+    } else {
+      context.moveTo(left, top);
+      context.lineTo(left, bottom);
+    }
+  }
+  context.lineCap = "square";
+  context.strokeStyle = REPRESENTATIVE_BORDER_BACKDROP;
+  context.lineWidth = Math.max(4, viewport.zoom * 3.5);
+  context.stroke();
+  context.strokeStyle = REPRESENTATIVE_BORDER;
+  context.lineWidth = Math.max(2, viewport.zoom * 1.8);
+  context.stroke();
 }
 
 function drawActionHighlights(
@@ -92,6 +142,7 @@ export function renderGameMap({
   viewport,
   selectedCoordinate,
   actionableTiles,
+  representativeBoundary,
   showActionHighlights,
   pixelRatio,
 }: RenderGameMapOptions): void {
@@ -126,6 +177,14 @@ export function renderGameMap({
     mapOrigin.y,
     state.mapSize.width * tileScreenSize,
     state.mapSize.height * tileScreenSize,
+  );
+
+  drawRepresentativeBoundary(
+    context,
+    representativeBoundary,
+    viewport,
+    range,
+    tileScreenSize,
   );
 
   // 전체 보기처럼 타일이 매우 작을 때는 겹치는 선으로 지도가 흐려지는 것을 막는다.

@@ -9,6 +9,7 @@ import type {
   ActionableTiles,
   Coordinate,
   GameState,
+  TerritoryBoundarySegment,
 } from "@/features/game/types/game";
 import type { Point } from "@/features/game/types/viewport";
 
@@ -17,6 +18,7 @@ interface TileMapCanvasProps {
   readonly selectedCoordinate: Coordinate | null;
   readonly initialFocusWorldPoint: Point;
   readonly actionableTiles: ActionableTiles;
+  readonly representativeBoundary: readonly TerritoryBoundarySegment[];
   readonly onSelect: (coordinate: Coordinate) => void;
 }
 
@@ -28,6 +30,7 @@ export function TileMapCanvas({
   selectedCoordinate,
   initialFocusWorldPoint,
   actionableTiles,
+  representativeBoundary,
   onSelect,
 }: TileMapCanvasProps) {
   const [showActionHighlights, setShowActionHighlights] = useState(true);
@@ -59,6 +62,7 @@ export function TileMapCanvas({
         viewport,
         selectedCoordinate,
         actionableTiles,
+        representativeBoundary,
         showActionHighlights,
         pixelRatio,
       });
@@ -69,6 +73,7 @@ export function TileMapCanvas({
     actionableTiles,
     canvasRef,
     pixelRatio,
+    representativeBoundary,
     selectedCoordinate,
     showActionHighlights,
     state,

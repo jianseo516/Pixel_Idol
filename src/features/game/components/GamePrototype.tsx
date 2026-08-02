@@ -8,11 +8,14 @@ import {
   type GameActionMessage,
 } from "@/features/game/components/TileInfoPanel";
 import { TileMapCanvas } from "@/features/game/components/TileMapCanvas";
+import { TerritorySummaryPanel } from "@/features/game/components/TerritorySummaryPanel";
 import { getTileActionPreview } from "@/features/game/logic/actionPreview";
 import { getActionableTiles } from "@/features/game/logic/actionableTiles";
 import { attackTile, claimTile } from "@/features/game/logic/actions";
 import { getStoredTile, getTile } from "@/features/game/logic/coordinates";
 import { changeSupportedIdol } from "@/features/game/logic/gameState";
+import { getAllIdolTerritorySummaries } from "@/features/game/logic/territories";
+import { getTerritoryBoundarySegments } from "@/features/game/logic/territoryBoundary";
 import { createInitialGameState } from "@/features/game/mock/createInitialGame";
 import { getOwnedTerritoryWorldCenter } from "@/features/game/rendering/viewport";
 import type { Coordinate, Idol } from "@/features/game/types/game";
@@ -50,6 +53,19 @@ export function GamePrototype() {
   const actionableTiles = useMemo(
     () => getActionableTiles(gameState),
     [gameState],
+  );
+  const territorySummaries = useMemo(
+    () => getAllIdolTerritorySummaries(gameState),
+    [gameState],
+  );
+  const supportedTerritorySummary =
+    territorySummaries[gameState.supportedIdolId];
+  const representativeBoundary = useMemo(
+    () =>
+      getTerritoryBoundarySegments(
+        supportedTerritorySummary.largestRegion?.coordinates ?? [],
+      ),
+    [supportedTerritorySummary],
   );
 
   const handleSelect = useCallback((coordinate: Coordinate) => {
@@ -121,6 +137,11 @@ export function GamePrototype() {
           onChange={handleIdolChange}
         />
 
+        <TerritorySummaryPanel
+          idol={supportedIdol}
+          summary={supportedTerritorySummary}
+        />
+
         <div className="flex items-center gap-3 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2">
           <span
             className="size-3 rounded-full"
@@ -141,6 +162,7 @@ export function GamePrototype() {
             selectedCoordinate={selectedCoordinate}
             initialFocusWorldPoint={territoryCenter}
             actionableTiles={actionableTiles}
+            representativeBoundary={representativeBoundary}
             onSelect={handleSelect}
           />
         </div>
