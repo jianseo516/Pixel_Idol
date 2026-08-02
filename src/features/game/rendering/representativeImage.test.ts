@@ -451,7 +451,7 @@ describe("representative layer specs", () => {
       { x: 2, y: 1 },
       { x: 1, y: 2 },
     ] as const;
-    const region = createRegion(MOCK_IDOLS[0].id, "lumi:1,1", coordinates);
+    const region = createRegion(MOCK_IDOLS[0].id, "bts:1,1", coordinates);
     const summaries = {
       [MOCK_IDOLS[0].id]: createSummary(MOCK_IDOLS[0].id, [region], region),
     };
@@ -464,11 +464,11 @@ describe("representative layer specs", () => {
 
   it("excludes smaller separated regions", () => {
     const state = createInitialGameState();
-    const largest = createRegion(MOCK_IDOLS[0].id, "lumi:1,1", [
+    const largest = createRegion(MOCK_IDOLS[0].id, "bts:1,1", [
       { x: 1, y: 1 },
       { x: 2, y: 1 },
     ]);
-    const smaller = createRegion(MOCK_IDOLS[0].id, "lumi:9,9", [
+    const smaller = createRegion(MOCK_IDOLS[0].id, "bts:9,9", [
       { x: 9, y: 9 },
     ]);
     const summaries = {
@@ -499,10 +499,10 @@ describe("representative layer specs", () => {
 
   it("changes regionId when the largest region changes", () => {
     const state = createInitialGameState();
-    const first = createRegion(MOCK_IDOLS[0].id, "lumi:1,1", [
+    const first = createRegion(MOCK_IDOLS[0].id, "bts:1,1", [
       { x: 1, y: 1 },
     ]);
-    const second = createRegion(MOCK_IDOLS[0].id, "lumi:5,5", [
+    const second = createRegion(MOCK_IDOLS[0].id, "bts:5,5", [
       { x: 5, y: 5 },
       { x: 6, y: 5 },
     ]);

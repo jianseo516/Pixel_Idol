@@ -7,7 +7,13 @@ import type {
   PlayerRow,
   SeasonRow,
   TileRow,
+  TileActionRpcResult,
 } from "@/features/game/types/database";
+
+export interface LoadedGameSnapshot {
+  readonly gameState: GameState;
+  readonly tileRows: readonly TileRow[];
+}
 
 function throwIfError(error: { readonly message: string } | null): void {
   if (error) {
@@ -50,10 +56,10 @@ async function getActiveSeason(client: SupabaseClient): Promise<SeasonRow> {
   return data as SeasonRow;
 }
 
-export async function loadGameState(
+export async function loadGameSnapshot(
   client: SupabaseClient,
   seasonId?: string,
-): Promise<GameState> {
+): Promise<LoadedGameSnapshot> {
   const season = seasonId
     ? await (async () => {
         const { data, error } = await client
@@ -79,7 +85,7 @@ export async function loadGameState(
       .order("sort_order"),
     client
       .from("tiles")
-      .select("season_id,x,y,owner_id,hp")
+      .select("season_id,x,y,owner_id,hp,updated_at")
       .eq("season_id", season.id),
     client
       .from("players")
@@ -92,25 +98,43 @@ export async function loadGameState(
   throwIfError(playerResult.error);
   if (!playerResult.data) throw new Error("플레이어 상태를 찾을 수 없습니다.");
 
-  return adaptSupabaseRowsToGameState({
+  const tileRows = (tileResult.data ?? []) as TileRow[];
+  return { gameState: adaptSupabaseRowsToGameState({
     season,
     idols: (idolResult.data ?? []) as IdolRow[],
-    tiles: (tileResult.data ?? []) as TileRow[],
+    tiles: tileRows,
     player: playerResult.data as PlayerRow,
-  });
+  }), tileRows };
+}
+
+export async function loadGameState(client: SupabaseClient, seasonId?: string): Promise<GameState> {
+  return (await loadGameSnapshot(client, seasonId)).gameState;
+}
+
+export async function loadTileRows(
+  client: SupabaseClient,
+  seasonId: string,
+): Promise<readonly TileRow[]> {
+  const { data, error } = await client
+    .from("tiles")
+    .select("season_id,x,y,owner_id,hp,updated_at")
+    .eq("season_id", seasonId);
+  throwIfError(error);
+  return (data ?? []) as TileRow[];
 }
 
 export async function changeSupportedIdolRemote(
   client: SupabaseClient,
   seasonId: string,
   idolId: Idol["id"],
-): Promise<GameState> {
+): Promise<PlayerRow> {
   const result = await client.rpc("change_supported_idol", {
     p_season_id: seasonId,
     p_idol_id: idolId,
   });
   throwIfError(result.error);
-  return loadGameState(client, seasonId);
+  if (!result.data) throw new Error("플레이어 변경 결과가 없습니다.");
+  return result.data as PlayerRow;
 }
 
 async function runTileAction(
@@ -118,21 +142,22 @@ async function runTileAction(
   rpcName: "claim_tile" | "attack_tile",
   seasonId: string,
   coordinate: Coordinate,
-): Promise<GameState> {
+): Promise<TileActionRpcResult> {
   const result = await client.rpc(rpcName, {
     p_season_id: seasonId,
     p_x: coordinate.x,
     p_y: coordinate.y,
   });
   throwIfError(result.error);
-  return loadGameState(client, seasonId);
+  if (!result.data) throw new Error("타일 행동 결과가 없습니다.");
+  return result.data as TileActionRpcResult;
 }
 
 export function claimTileRemote(
   client: SupabaseClient,
   seasonId: string,
   coordinate: Coordinate,
-): Promise<GameState> {
+): Promise<TileActionRpcResult> {
   return runTileAction(client, "claim_tile", seasonId, coordinate);
 }
 
@@ -140,6 +165,6 @@ export function attackTileRemote(
   client: SupabaseClient,
   seasonId: string,
   coordinate: Coordinate,
-): Promise<GameState> {
+): Promise<TileActionRpcResult> {
   return runTileAction(client, "attack_tile", seasonId, coordinate);
 }

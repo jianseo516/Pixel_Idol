@@ -143,13 +143,13 @@ describe("getActionableTiles", () => {
       createTile(initial, { x: 5, y: 5 }, MOCK_IDOLS[0].id),
       createTile(initial, { x: 20, y: 20 }, MOCK_IDOLS[1].id),
     ]);
-    const lumiKeys = keys(getActionableTiles(state).claimable);
-    const novaState = changeSupportedIdol(state, MOCK_IDOLS[1].id);
-    const novaKeys = keys(getActionableTiles(novaState).claimable);
+    const firstIdolKeys = keys(getActionableTiles(state).claimable);
+    const secondIdolState = changeSupportedIdol(state, MOCK_IDOLS[1].id);
+    const secondIdolKeys = keys(getActionableTiles(secondIdolState).claimable);
 
-    expect(lumiKeys).toContain("4,5");
-    expect(novaKeys).toContain("19,20");
-    expect(novaKeys).not.toContain("4,5");
+    expect(firstIdolKeys).toContain("4,5");
+    expect(secondIdolKeys).toContain("19,20");
+    expect(secondIdolKeys).not.toContain("4,5");
   });
 
   it("removes a claimed coordinate and adds its new boundary", () => {

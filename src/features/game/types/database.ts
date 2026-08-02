@@ -21,6 +21,7 @@ export interface TileRow {
   readonly y: number;
   readonly owner_id: string;
   readonly hp: number;
+  readonly updated_at: string;
 }
 
 export interface PlayerRow {
@@ -28,6 +29,7 @@ export interface PlayerRow {
   readonly user_id: string;
   readonly supported_idol_id: string;
   readonly tokens: number;
+  readonly last_action_at?: string | null;
 }
 
 export interface GameSnapshotRows {
@@ -35,4 +37,9 @@ export interface GameSnapshotRows {
   readonly idols: readonly IdolRow[];
   readonly tiles: readonly TileRow[];
   readonly player: PlayerRow;
+}
+
+export interface TileActionRpcResult {
+  readonly player: PlayerRow;
+  readonly tile: TileRow;
 }

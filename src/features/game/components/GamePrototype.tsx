@@ -94,15 +94,15 @@ export function GamePrototype() {
     if (!gameState || !selectedCoordinate || !actionPreview?.allowed || remote.isPending) return;
     const previousOwnerId = getStoredTile(gameState, selectedCoordinate)?.ownerId;
     try {
-      const nextState = await (actionPreview.actionType === "CLAIM"
+      const changedTile = await (actionPreview.actionType === "CLAIM"
         ? remote.claimTile(selectedCoordinate)
         : remote.attackTile(selectedCoordinate));
-      if (!nextState) return;
+      if (!changedTile) return;
       if (actionPreview.actionType === "CLAIM") {
         setActionMessage({ kind: "success", text: "빈 영토를 점령했습니다." });
         return;
       }
-      const nextOwnerId = getStoredTile(nextState, selectedCoordinate)?.ownerId;
+      const nextOwnerId = changedTile.owner_id;
       const captured = previousOwnerId !== nextOwnerId && nextOwnerId === gameState.supportedIdolId;
       setActionMessage({
         kind: "success",
@@ -146,12 +146,36 @@ export function GamePrototype() {
   }
 
   const supportedIdol = gameState.idols[gameState.supportedIdolId];
+  const realtimeLabels = {
+    connecting: "연결 중",
+    connected: "실시간 연결됨",
+    reconnecting: "재연결 중",
+    error: "실시간 오류",
+  } as const;
+  const realtimeColors = {
+    connecting: "bg-amber-400",
+    connected: "bg-emerald-400",
+    reconnecting: "bg-orange-400",
+    error: "bg-rose-500",
+  } as const;
   return (
     <main className="flex min-h-dvh flex-col bg-slate-950 text-slate-100 lg:h-dvh lg:overflow-hidden">
       <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-800 px-4 py-3 sm:px-5">
         <div><p className="text-xs font-semibold tracking-[0.22em] text-rose-400 uppercase">Pixel Idol</p><h1 className="mt-1 text-xl font-black sm:text-2xl">아이돌 픽셀</h1></div>
         <IdolSelector idols={idols} selectedId={gameState.supportedIdolId} onChange={handleIdolChange} />
         <TerritorySummaryPanel idol={supportedIdol} summary={supportedSummary} />
+        <div className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs">
+          <span className={`size-2.5 rounded-full ${realtimeColors[remote.realtimeStatus]}`} aria-hidden="true" />
+          <span className="font-semibold text-slate-200">{realtimeLabels[remote.realtimeStatus]}</span>
+          <button
+            type="button"
+            className="rounded-md border border-slate-600 px-2 py-1 font-bold hover:bg-slate-800 disabled:opacity-50"
+            disabled={remote.isSynchronizing}
+            onClick={() => void remote.synchronizeTiles().catch(() => undefined)}
+          >
+            {remote.isSynchronizing ? "동기화 중" : "동기화"}
+          </button>
+        </div>
         <div className="flex items-center gap-3 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2">
           <span className="size-3 rounded-full" style={{ backgroundColor: supportedIdol?.color }} aria-hidden="true" />
           <div className="text-right"><p className="text-xs text-slate-500">응원 중</p><p className="text-sm font-bold">{supportedIdol?.name}</p></div>
@@ -161,8 +185,11 @@ export function GamePrototype() {
         <div className="relative h-[65dvh] min-h-0 min-w-0 overflow-hidden rounded-2xl border border-slate-700 bg-slate-950 shadow-2xl shadow-black/30 lg:h-full">
           <TileMapCanvas state={gameState} selectedCoordinate={selectedCoordinate} initialFocusWorldPoint={territoryCenter} actionableTiles={actionableTiles} representativeBoundary={representativeBoundary} representativeLayerSpecs={representativeLayerSpecs} onSelect={handleSelect} />
         </div>
-        <TileInfoPanel selectedTile={selectedTile} owner={selectedOwner} tokens={gameState.tokens} preview={actionPreview} actionMessage={actionMessage} onAction={() => void handleAction()} onClear={handleClear} />
+        <TileInfoPanel selectedTile={selectedTile} owner={selectedOwner} tokens={gameState.tokens} preview={actionPreview} actionMessage={actionMessage} isPending={remote.isPending} onAction={() => void handleAction()} onClear={handleClear} />
       </section>
+      <p className="shrink-0 border-t border-slate-800 px-4 py-2 text-center text-[11px] text-slate-500">
+        공개 데모의 안정성을 위해 행동 간 짧은 대기 시간이 적용됩니다. · 본 서비스는 비공식 팬 제작 프로토타입이며 각 아티스트 및 소속사와 관련이 없습니다. 현재 대표 이미지는 직접 제작한 워드마크 목업입니다.
+      </p>
     </main>
   );
 }

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" role="img" aria-labelledby="title">
+  <title id="title">Stray Kids 비공식 워드마크 목업</title>
+  <rect width="800" height="600" fill="#991B1B"/>
+  <rect x="64" y="72" width="672" height="456" rx="30" fill="#FCA5A5"/>
+  <text x="400" y="318" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="76" font-weight="700" text-anchor="middle" dominant-baseline="middle">Stray Kids</text>
+  <text x="400" y="402" fill="#991B1B" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="600" letter-spacing="6" text-anchor="middle">PIXEL IDOL</text>
+</svg>

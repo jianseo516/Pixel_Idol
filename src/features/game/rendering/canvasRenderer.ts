@@ -1,5 +1,6 @@
 import { GAME_CONFIG } from "@/config/game";
 import { getStoredTile } from "@/features/game/logic/coordinates";
+import { getOwnershipBoundarySegments } from "@/features/game/logic/ownershipBoundary";
 import {
   getVisibleTileRange,
   tileToScreen,
@@ -30,6 +31,7 @@ const ATTACKABLE_FILL = "rgba(251, 146, 60, 0.14)";
 const ATTACKABLE_STROKE = "rgba(251, 146, 60, 0.98)";
 const REPRESENTATIVE_BORDER = "rgba(253, 224, 71, 0.98)";
 const REPRESENTATIVE_BORDER_BACKDROP = "rgba(15, 23, 42, 0.95)";
+const OWNERSHIP_BOUNDARY_COLOR = "rgba(148, 163, 184, 0.48)";
 
 interface RenderGameMapOptions {
   readonly context: CanvasRenderingContext2D;
@@ -183,6 +185,40 @@ function drawRepresentativeBoundary(
   context.stroke();
 }
 
+function drawOwnershipBoundaries(
+  context: CanvasRenderingContext2D,
+  state: GameState,
+  viewport: Viewport,
+  range: VisibleTileRange,
+  tileScreenSize: number,
+): void {
+  context.beginPath();
+  for (const segment of getOwnershipBoundarySegments(state, range)) {
+    const screen = tileToScreen(segment.coordinate, viewport);
+    const left = screen.x;
+    const top = screen.y;
+    const right = left + tileScreenSize;
+    const bottom = top + tileScreenSize;
+    if (segment.side === "TOP") {
+      context.moveTo(left, top);
+      context.lineTo(right, top);
+    } else if (segment.side === "RIGHT") {
+      context.moveTo(right, top);
+      context.lineTo(right, bottom);
+    } else if (segment.side === "BOTTOM") {
+      context.moveTo(left, bottom);
+      context.lineTo(right, bottom);
+    } else {
+      context.moveTo(left, top);
+      context.lineTo(left, bottom);
+    }
+  }
+  context.lineCap = "square";
+  context.strokeStyle = OWNERSHIP_BOUNDARY_COLOR;
+  context.lineWidth = 1;
+  context.stroke();
+}
+
 function drawActionHighlights(
   context: CanvasRenderingContext2D,
   coordinates: readonly Coordinate[],
@@ -255,11 +291,28 @@ export function renderGameMap({
 
   for (let y = range.startY; y < range.endY; y += 1) {
     for (let x = range.startX; x < range.endX; x += 1) {
+      const screen = tileToScreen({ x, y }, viewport);
+      context.fillStyle = EMPTY_TILE_COLOR;
+      context.fillRect(screen.x, screen.y, tileScreenSize, tileScreenSize);
+    }
+  }
+
+  context.lineWidth = 1;
+  context.strokeStyle = GRID_COLOR;
+  for (let y = range.startY; y < range.endY; y += 1) {
+    for (let x = range.startX; x < range.endX; x += 1) {
+      const screen = tileToScreen({ x, y }, viewport);
+      context.strokeRect(screen.x, screen.y, tileScreenSize, tileScreenSize);
+    }
+  }
+
+  for (let y = range.startY; y < range.endY; y += 1) {
+    for (let x = range.startX; x < range.endX; x += 1) {
       const coordinate = { x, y };
       const tile = getStoredTile(state, coordinate);
-
+      if (!tile) continue;
       const screen = tileToScreen(coordinate, viewport);
-      context.fillStyle = tile ? getTileColor(tile, state) : EMPTY_TILE_COLOR;
+      context.fillStyle = getTileColor(tile, state);
       context.fillRect(screen.x, screen.y, tileScreenSize, tileScreenSize);
     }
   }
@@ -280,14 +333,7 @@ export function renderGameMap({
     tileScreenSize,
   );
 
-  context.lineWidth = 1;
-  context.strokeStyle = GRID_COLOR;
-  for (let y = range.startY; y < range.endY; y += 1) {
-    for (let x = range.startX; x < range.endX; x += 1) {
-      const screen = tileToScreen({ x, y }, viewport);
-      context.strokeRect(screen.x, screen.y, tileScreenSize, tileScreenSize);
-    }
-  }
+  drawOwnershipBoundaries(context, state, viewport, range, tileScreenSize);
 
   const mapOrigin = tileToScreen({ x: 0, y: 0 }, viewport);
   context.strokeStyle = MAP_BORDER_COLOR;

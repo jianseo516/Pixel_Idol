@@ -72,7 +72,7 @@ describe("territory region calculation", () => {
     const regions = getTerritoryRegions(state, MOCK_IDOLS[0].id);
 
     expect(regions).toHaveLength(1);
-    expect(regions[0]).toMatchObject({ size: 1, id: "lumi:5,5" });
+    expect(regions[0]).toMatchObject({ size: 1, id: "bts:5,5" });
   });
 
   it("connects orthogonal tiles into one region", () => {
@@ -120,7 +120,7 @@ describe("territory region calculation", () => {
     ]);
     const regions = getTerritoryRegions(state, MOCK_IDOLS[0].id);
 
-    expect(regions.map((region) => region.id)).toEqual(["lumi:2,2", "lumi:9,9"]);
+    expect(regions.map((region) => region.id)).toEqual(["bts:2,2", "bts:9,9"]);
     expect(regions.map((region) => region.size)).toEqual([2, 1]);
   });
 
@@ -135,7 +135,7 @@ describe("territory region calculation", () => {
     expect(
       getLargestTerritoryRegion(getTerritoryRegions(state, MOCK_IDOLS[0].id))
         ?.id,
-    ).toBe("lumi:8,8");
+    ).toBe("bts:8,8");
   });
 
   it("breaks size ties by minY, then minX, then stable ID", () => {
@@ -150,7 +150,7 @@ describe("territory region calculation", () => {
     ]);
 
     expect(getIdolTerritorySummary(state, MOCK_IDOLS[0].id).largestRegion?.id).toBe(
-      "lumi:2,4",
+      "bts:2,4",
     );
   });
 

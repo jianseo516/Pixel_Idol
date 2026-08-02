@@ -15,19 +15,26 @@ const ROWS: GameSnapshotRows = {
   },
   idols: [
     {
-      id: "lumi",
-      name: "루미",
-      color: "#F43F5E",
-      representative_image_src: "/mock-idols/lumi.svg",
+      id: "bts",
+      name: "BTS",
+      color: "#7C3AED",
+      representative_image_src: "/mock-idols/bts.svg",
     },
   ],
   tiles: [
-    { season_id: "season-test", x: 2, y: 3, owner_id: "lumi", hp: 4 },
+    {
+      season_id: "season-test",
+      x: 2,
+      y: 3,
+      owner_id: "bts",
+      hp: 4,
+      updated_at: "2026-08-02T00:00:00Z",
+    },
   ],
   player: {
     season_id: "season-test",
     user_id: "00000000-0000-0000-0000-000000000001",
-    supported_idol_id: "lumi",
+    supported_idol_id: "bts",
     tokens: 87,
   },
 };
@@ -37,11 +44,11 @@ describe("Supabase game adapter", () => {
     const state = adaptSupabaseRowsToGameState(ROWS);
 
     expect(state.mapSize).toEqual({ width: 90, height: 54 });
-    expect(state.supportedIdolId).toBe("lumi");
+    expect(state.supportedIdolId).toBe("bts");
     expect(state.tokens).toBe(87);
     expect(Object.keys(state.tiles)).toHaveLength(1);
     expect(state.tiles["season-test:2,3"]).toMatchObject({
-      ownerId: "lumi",
+      ownerId: "bts",
       hp: 4,
       coordinate: { x: 2, y: 3 },
     });

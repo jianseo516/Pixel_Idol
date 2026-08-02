@@ -1,8 +1,10 @@
-insert into public.seasons (id, name, starts_at, ends_at, status, map_width, map_height)
-values ('season-1', '공동 플레이 데모 시즌 1', '2025-01-01T00:00:00Z', '2030-01-01T00:00:00Z', 'active', 90, 54)
-on conflict (id) do update set
-  name = excluded.name, starts_at = excluded.starts_at, ends_at = excluded.ends_at,
-  status = excluded.status, map_width = excluded.map_width, map_height = excluded.map_height;
+-- 개발 단계의 더미 roster를 폐기하는 일회성 초기화 migration이다.
+-- players와 tiles를 모두 삭제하므로 프로덕션 운영 시작 이후에는 절대로 다시 실행하지 않는다.
+begin;
+
+delete from public.players;
+delete from public.tiles;
+delete from public.idols;
 
 insert into public.idols (id, name, color, representative_image_src, sort_order) values
   ('bts', 'BTS', '#7C3AED', '/mock-idols/bts.svg', 1),
@@ -12,11 +14,7 @@ insert into public.idols (id, name, color, representative_image_src, sort_order)
   ('aespa', 'aespa', '#2563EB', '/mock-idols/aespa.svg', 5),
   ('ive', 'IVE', '#F59E0B', '/mock-idols/ive.svg', 6),
   ('enhypen', 'ENHYPEN', '#10B981', '/mock-idols/enhypen.svg', 7),
-  ('le-sserafim', 'LE SSERAFIM', '#84CC16', '/mock-idols/le-sserafim.svg', 8)
-on conflict (id) do update set
-  name = excluded.name, color = excluded.color,
-  representative_image_src = excluded.representative_image_src,
-  sort_order = excluded.sort_order;
+  ('le-sserafim', 'LE SSERAFIM', '#84CC16', '/mock-idols/le-sserafim.svg', 8);
 
 insert into public.tiles (season_id, x, y, owner_id, hp) values
   ('season-1', 5, 5, 'bts', 5), ('season-1', 6, 5, 'bts', 5),
@@ -34,5 +32,6 @@ insert into public.tiles (season_id, x, y, owner_id, hp) values
   ('season-1', 25, 45, 'enhypen', 5), ('season-1', 26, 45, 'enhypen', 5),
   ('season-1', 25, 46, 'enhypen', 5), ('season-1', 26, 46, 'enhypen', 5),
   ('season-1', 65, 45, 'le-sserafim', 5), ('season-1', 66, 45, 'le-sserafim', 5),
-  ('season-1', 65, 46, 'le-sserafim', 5), ('season-1', 66, 46, 'le-sserafim', 5)
-on conflict (season_id, x, y) do update set owner_id = excluded.owner_id, hp = excluded.hp;
+  ('season-1', 65, 46, 'le-sserafim', 5), ('season-1', 66, 46, 'le-sserafim', 5);
+
+commit;

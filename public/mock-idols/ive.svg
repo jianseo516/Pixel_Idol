@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 500" role="img" aria-labelledby="title">
+  <title id="title">IVE 비공식 워드마크 목업</title>
+  <rect width="900" height="500" fill="#92400E"/>
+  <rect x="72" y="60" width="756" height="380" rx="25" fill="#FCD34D"/>
+  <text x="450" y="265" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="104" font-weight="700" text-anchor="middle" dominant-baseline="middle">IVE</text>
+  <text x="450" y="335" fill="#92400E" font-family="Arial, Helvetica, sans-serif" font-size="25" font-weight="600" letter-spacing="8" text-anchor="middle">PIXEL IDOL</text>
+</svg>

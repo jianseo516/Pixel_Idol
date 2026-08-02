@@ -12,7 +12,10 @@ export function IdolSelector({
   onChange,
 }: IdolSelectorProps) {
   return (
-    <div className="flex flex-wrap items-center gap-1.5" aria-label="응원 아이돌 선택">
+    <div
+      className="grid w-full grid-cols-2 gap-1.5 sm:w-auto sm:grid-cols-4"
+      aria-label="응원 아이돌 선택"
+    >
       {idols.map((idol) => {
         const selected = idol.id === selectedId;
         return (
@@ -21,7 +24,7 @@ export function IdolSelector({
             type="button"
             aria-pressed={selected}
             onClick={() => onChange(idol.id)}
-            className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition ${
+            className={`flex min-w-0 items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm leading-tight font-semibold whitespace-normal transition ${
               selected
                 ? "border-white/50 bg-slate-700 text-white"
                 : "border-slate-700 bg-slate-900 text-slate-400 hover:border-slate-500 hover:text-white"
@@ -32,7 +35,7 @@ export function IdolSelector({
               style={{ backgroundColor: idol.color }}
               aria-hidden="true"
             />
-            {idol.name}
+            <span>{idol.name}</span>
           </button>
         );
       })}

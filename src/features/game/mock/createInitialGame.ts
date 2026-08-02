@@ -11,22 +11,52 @@ import type {
 
 export const MOCK_IDOLS = [
   {
-    id: "lumi",
-    name: "루미",
-    color: "#F43F5E",
-    representativeImageSrc: "/mock-idols/lumi.svg",
+    id: "bts",
+    name: "BTS",
+    color: "#7C3AED",
+    representativeImageSrc: "/mock-idols/bts.svg",
   },
   {
-    id: "nova",
-    name: "노바",
-    color: "#3B82F6",
-    representativeImageSrc: "/mock-idols/nova.svg",
+    id: "blackpink",
+    name: "BLACKPINK",
+    color: "#EC4899",
+    representativeImageSrc: "/mock-idols/blackpink.svg",
   },
   {
-    id: "muse",
-    name: "뮤즈",
-    color: "#22C55E",
-    representativeImageSrc: "/mock-idols/muse.svg",
+    id: "seventeen",
+    name: "SEVENTEEN",
+    color: "#06B6D4",
+    representativeImageSrc: "/mock-idols/seventeen.svg",
+  },
+  {
+    id: "stray-kids",
+    name: "Stray Kids",
+    color: "#EF4444",
+    representativeImageSrc: "/mock-idols/stray-kids.svg",
+  },
+  {
+    id: "aespa",
+    name: "aespa",
+    color: "#2563EB",
+    representativeImageSrc: "/mock-idols/aespa.svg",
+  },
+  {
+    id: "ive",
+    name: "IVE",
+    color: "#F59E0B",
+    representativeImageSrc: "/mock-idols/ive.svg",
+  },
+  {
+    id: "enhypen",
+    name: "ENHYPEN",
+    color: "#10B981",
+    representativeImageSrc: "/mock-idols/enhypen.svg",
+  },
+  {
+    id: "le-sserafim",
+    name: "LE SSERAFIM",
+    color: "#84CC16",
+    representativeImageSrc: "/mock-idols/le-sserafim.svg",
   },
 ] as const satisfies readonly Idol[];
 
@@ -39,23 +69,39 @@ export const MOCK_SEASON: Season = {
 };
 
 export const MOCK_STARTING_TERRITORIES: Readonly<Record<Idol["id"], readonly Coordinate[]>> = {
-  lumi: [
+  bts: [
     { x: 5, y: 5 },
     { x: 6, y: 5 },
     { x: 5, y: 6 },
     { x: 6, y: 6 },
   ],
-  nova: [
-    { x: 44, y: 26 },
-    { x: 45, y: 26 },
-    { x: 44, y: 27 },
-    { x: 45, y: 27 },
+  blackpink: [
+    { x: 33, y: 5 }, { x: 34, y: 5 },
+    { x: 33, y: 6 }, { x: 34, y: 6 },
   ],
-  muse: [
-    { x: 83, y: 47 },
-    { x: 84, y: 47 },
-    { x: 83, y: 48 },
-    { x: 84, y: 48 },
+  seventeen: [
+    { x: 70, y: 5 }, { x: 71, y: 5 },
+    { x: 70, y: 6 }, { x: 71, y: 6 },
+  ],
+  "stray-kids": [
+    { x: 10, y: 25 }, { x: 11, y: 25 },
+    { x: 10, y: 26 }, { x: 11, y: 26 },
+  ],
+  aespa: [
+    { x: 43, y: 25 }, { x: 44, y: 25 },
+    { x: 43, y: 26 }, { x: 44, y: 26 },
+  ],
+  ive: [
+    { x: 75, y: 25 }, { x: 76, y: 25 },
+    { x: 75, y: 26 }, { x: 76, y: 26 },
+  ],
+  enhypen: [
+    { x: 25, y: 45 }, { x: 26, y: 45 },
+    { x: 25, y: 46 }, { x: 26, y: 46 },
+  ],
+  "le-sserafim": [
+    { x: 65, y: 45 }, { x: 66, y: 45 },
+    { x: 65, y: 46 }, { x: 66, y: 46 },
   ],
 };
 

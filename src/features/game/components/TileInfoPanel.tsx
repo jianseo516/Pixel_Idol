@@ -16,6 +16,7 @@ interface TileInfoPanelProps {
   readonly tokens: number;
   readonly preview: TileActionPreview | null;
   readonly actionMessage: GameActionMessage | null;
+  readonly isPending: boolean;
   readonly onAction: () => void;
   readonly onClear: () => void;
 }
@@ -26,6 +27,7 @@ export function TileInfoPanel({
   tokens,
   preview,
   actionMessage,
+  isPending,
   onAction,
   onClear,
 }: TileInfoPanelProps) {
@@ -90,9 +92,12 @@ export function TileInfoPanel({
             <button
               type="button"
               onClick={onAction}
-              className="mt-4 w-full rounded-xl bg-rose-500 px-4 py-3 text-sm font-black text-white transition hover:bg-rose-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-300"
+              disabled={isPending}
+              className="mt-4 w-full rounded-xl bg-rose-500 px-4 py-3 text-sm font-black text-white transition hover:bg-rose-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-300 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {preview.actionType === "CLAIM" ? "점령" : "공격"} · {preview.cost}토큰
+              {isPending
+                ? "처리 중..."
+                : `${preview.actionType === "CLAIM" ? "점령" : "공격"} · ${preview.cost}토큰`}
             </button>
           ) : null}
 
