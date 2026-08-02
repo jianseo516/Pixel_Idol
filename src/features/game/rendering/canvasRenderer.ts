@@ -109,6 +109,8 @@ export function drawRepresentativeLayers(
       viewport,
     );
     context.globalAlpha = layer.opacity;
+    // 저해상도 픽셀아트를 확대할 때 브라우저 보간으로 흐려지지 않게 한다.
+    context.imageSmoothingEnabled = false;
     if (process.env.NODE_ENV === "development") {
       const image = layer.image as CanvasImageSource & {
         readonly complete?: boolean;

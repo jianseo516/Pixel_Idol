@@ -9,6 +9,11 @@ describe("raw idol image migration", () => {
     expect(SQL).toContain("3145728");
     expect(SQL).toContain("array['image/png', 'image/jpeg', 'image/webp']");
   });
+  it("accepts any positive decoded dimensions without a 300px minimum", () => {
+    expect(SQL).toContain("p_width <= 0 or p_height <= 0");
+    expect(SQL).toContain("p_width > 5000 or p_height > 5000");
+    expect(SQL).not.toMatch(/p_width\s*<\s*300|p_height\s*<\s*300/);
+  });
   it("limits paths, ownership, active rows and 60-second submissions", () => {
     expect(SQL).toContain("owner_id = auth.uid()::text");
     expect(SQL).toContain("p.supported_idol_id = (storage.foldername(name))[2]");

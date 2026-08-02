@@ -62,10 +62,10 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 
 ## 사용자 대표 이미지 업로드
 
-- PNG, JPEG, WebP만 허용하며 최대 크기는 3MB, 해상도는 300×300px 이상이고 한 변 5000px 이하입니다.
+- PNG, JPEG, WebP만 허용하며 최대 크기는 3MB이고 한 변은 5000px 이하입니다. 정상적으로 디코딩되는 양수 크기 이미지라면 작은 픽셀아트도 업로드할 수 있습니다.
 - 승인이나 자동 검열 없이 마지막으로 성공한 업로드가 즉시 공용 대표 이미지가 됩니다.
 - 같은 사용자는 서버 시간 기준 60초에 한 번만 변경할 수 있습니다.
-- 파일은 `idol-community-images/{seasonId}/{idolId}/{UUID}.{확장자}`에 새 객체로 저장되고 덮어쓰지 않습니다.
+- 파일은 `idol-community-images/{userId}/{seasonId}/{idolId}/{UUID}.{확장자}`에 사용자별 새 객체로 저장되고 덮어쓰지 않습니다.
 - 교체된 제출과 Storage 파일은 자동 삭제하지 않으므로 Storage 사용량이 계속 증가할 수 있습니다. 운영 전 오래된 `replaced` 파일의 보존·정리 정책이 필요합니다.
 - 일반 사용자는 active 이미지 정보와 자신의 기록만 조회할 수 있습니다.
 

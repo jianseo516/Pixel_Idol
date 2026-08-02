@@ -397,7 +397,7 @@ export function useSupabaseGame() {
       setIsUploadingImage(true);
       try {
         return await submitIdolImageRemote(getSupabaseBrowserClient(), {
-          seasonId, idolId, ...input,
+          userId: user.id, seasonId, idolId, ...input,
         });
       } finally {
         setIsUploadingImage(false);

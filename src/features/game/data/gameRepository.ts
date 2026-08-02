@@ -10,12 +10,41 @@ import type {
   TileActionRpcResult,
   SubmitIdolImageRpcResult,
 } from "@/features/game/types/database";
-import { createIdolImageStoragePath, type IdolImageMimeType } from "@/features/game/data/idolImageUpload";
+import { createIdolImageStoragePath, getIdolImageStoragePathDetails, type IdolImageMimeType } from "@/features/game/data/idolImageUpload";
 import { throwSupabaseQueryError } from "@/lib/supabase/errorDiagnostics";
 
 export interface LoadedGameSnapshot {
   readonly gameState: GameState;
   readonly tileRows: readonly TileRow[];
+}
+
+interface StorageCleanupBucket {
+  remove(paths: readonly string[]): PromiseLike<{
+    readonly error: { readonly code?: string; readonly message: string } | null;
+  }>;
+}
+
+export async function cleanupFailedIdolImageUpload(
+  bucket: StorageCleanupBucket,
+  storagePath: string,
+): Promise<void> {
+  try {
+    const cleanup = await bucket.remove([storagePath]);
+    if (cleanup.error && process.env.NODE_ENV === "development") {
+      console.warn("[idol-image-storage-cleanup]", {
+        code: cleanup.error.code ?? null,
+        message: cleanup.error.message,
+        storagePath,
+      });
+    }
+  } catch (cleanupError) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[idol-image-storage-cleanup]", {
+        message: cleanupError instanceof Error ? cleanupError.message : "Storage cleanup failed",
+        storagePath,
+      });
+    }
+  }
 }
 
 async function getActiveSeason(client: SupabaseClient): Promise<SeasonRow> {
@@ -133,6 +162,7 @@ export async function loadIdolRows(client: SupabaseClient): Promise<readonly Ido
 export async function submitIdolImageRemote(
   client: SupabaseClient,
   input: {
+    readonly userId: string;
     readonly seasonId: string;
     readonly idolId: string;
     readonly file: File;
@@ -143,11 +173,33 @@ export async function submitIdolImageRemote(
 ): Promise<SubmitIdolImageRpcResult> {
   const submissionId = crypto.randomUUID();
   const storagePath = createIdolImageStoragePath({
+    userId: input.userId,
     seasonId: input.seasonId,
     idolId: input.idolId,
     submissionId,
     mimeType: input.mimeType,
   });
+  if (process.env.NODE_ENV === "development") {
+    const pathDetails = getIdolImageStoragePathDetails({
+      userId: input.userId,
+      seasonId: input.seasonId,
+      idolId: input.idolId,
+      submissionId,
+      mimeType: input.mimeType,
+    });
+    console.debug("[idol-image-storage-path]", pathDetails);
+    const diagnosis = await client.rpc("diagnose_idol_image_upload_path", {
+      p_storage_path: storagePath,
+    });
+    if (diagnosis.error) {
+      console.warn("[idol-image-storage-diagnosis]", {
+        code: diagnosis.error.code,
+        message: diagnosis.error.message,
+      });
+    } else {
+      console.debug("[idol-image-storage-diagnosis]", diagnosis.data);
+    }
+  }
   const bucket = client.storage.from("idol-community-images");
   const upload = await bucket.upload(storagePath, input.file, {
     contentType: input.mimeType,
@@ -170,9 +222,7 @@ export async function submitIdolImageRemote(
     if (!result.data) throw new Error("대표 이미지 변경 결과가 없습니다.");
     return result.data as SubmitIdolImageRpcResult;
   } catch (error) {
-    void bucket.remove([storagePath]).then(({ error: cleanupError }) => {
-      if (cleanupError) console.warn("업로드 실패 파일을 정리하지 못했습니다.", cleanupError.message);
-    });
+    await cleanupFailedIdolImageUpload(bucket, storagePath);
     throw error;
   }
 }

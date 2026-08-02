@@ -1,6 +1,7 @@
 import { GAME_CONFIG } from "@/config/game";
 import { IDOL_IMAGE_MAX_BYTES, IDOL_IMAGE_UPLOAD_COOLDOWN_MS } from "@/features/game/data/idolImageUpload";
 import { HelpAuthCta } from "@/features/auth/HelpAuthCta";
+import { FeedbackEntryButton } from "@/features/feedback/FeedbackEntryButton";
 
 const sections = [
   ["게임 목표", "응원하는 아이돌의 영토를 넓히는 실시간 타일 점령 게임입니다."],
@@ -14,5 +15,5 @@ const sections = [
 ] as const;
 
 export default function HelpPage() {
-  return <main className="min-h-dvh bg-slate-950 px-4 py-10 text-slate-100"><div className="mx-auto max-w-3xl"><p className="text-xs font-bold tracking-[.2em] text-rose-400">PIXEL IDOL</p><h1 className="mt-2 text-3xl font-black">Pixel Idol 이용 방법</h1><div className="mt-8 grid gap-3">{sections.map(([title, body]) => <details key={title} open={title === "게임 목표"} className="rounded-2xl border border-slate-700 bg-slate-900 p-5"><summary className="cursor-pointer font-black">{title}</summary><p className="mt-3 text-sm leading-7 text-slate-300">{body}</p></details>)}</div><HelpAuthCta /></div></main>;
+  return <main className="min-h-dvh bg-slate-950 px-4 py-10 text-slate-100"><div className="mx-auto max-w-3xl"><p className="text-xs font-bold tracking-[.2em] text-rose-400">PIXEL IDOL</p><h1 className="mt-2 text-3xl font-black">Pixel Idol 이용 방법</h1><div className="mt-8 grid gap-3">{sections.map(([title, body]) => <details key={title} open={title === "게임 목표"} className="rounded-2xl border border-slate-700 bg-slate-900 p-5"><summary className="cursor-pointer font-black">{title}</summary><p className="mt-3 text-sm leading-7 text-slate-300">{body}</p></details>)}</div><div className="mt-6 flex justify-end"><FeedbackEntryButton className="rounded-xl bg-sky-300 px-4 py-3 text-sm font-black text-sky-950 hover:bg-sky-200" /></div><HelpAuthCta /></div></main>;
 }

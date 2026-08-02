@@ -10,6 +10,8 @@ import { TileInfoPanel, type GameActionMessage } from "@/features/game/component
 import { TileMapCanvas } from "@/features/game/components/TileMapCanvas";
 import { TerritorySummaryPanel } from "@/features/game/components/TerritorySummaryPanel";
 import { MyPageModal } from "@/features/game/components/MyPageModal";
+import { BetaNoticeBanner } from "@/features/feedback/BetaNoticeBanner";
+import { FeedbackModal } from "@/features/feedback/FeedbackModal";
 import { useSupabaseGame } from "@/features/game/hooks/useSupabaseGame";
 import { getTileActionPreview } from "@/features/game/logic/actionPreview";
 import { getActionableTiles } from "@/features/game/logic/actionableTiles";
@@ -29,6 +31,7 @@ export function GamePrototype() {
   const [selectedCoordinate, setSelectedCoordinate] = useState<Coordinate | null>(null);
   const [actionMessage, setActionMessage] = useState<GameActionMessage | null>(null);
   const [isMyPageOpen, setIsMyPageOpen] = useState(false);
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
   const myPageButtonRef = useRef<HTMLButtonElement>(null);
   const personalSupportedIdolId = remote.supportedIdolId;
 
@@ -239,6 +242,7 @@ export function GamePrototype() {
           {remote.isAuthenticated && remote.profile && remote.player ? <><span className="hidden text-slate-300 sm:inline">{remote.profile.nickname}</span><button ref={myPageButtonRef} type="button" onClick={() => setIsMyPageOpen(true)} className="rounded-lg bg-slate-700 px-3 py-2 hover:bg-slate-600">마이페이지</button></> : <><Link href="/login" className="rounded-lg bg-rose-500 px-3 py-2">로그인</Link><Link href="/signup" className="rounded-lg border border-slate-600 px-3 py-2">회원가입</Link></>}
         </nav>
       </header>
+      <BetaNoticeBanner onOpenFeedback={() => setIsFeedbackOpen(true)} />
       <section className="grid min-w-0 flex-1 gap-3 p-3 sm:p-4 lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_288px]">
         <div className="relative h-[65dvh] min-h-0 min-w-0 overflow-hidden rounded-2xl border border-slate-700 bg-slate-950 shadow-2xl shadow-black/30 lg:h-full">
           <TileMapCanvas state={gameState} selectedCoordinate={selectedCoordinate} initialFocusWorldPoint={territoryCenter} actionableTiles={actionableTiles} representativeBoundary={representativeBoundary} representativeLayerSpecs={representativeLayerSpecs} showPersonalNavigation={remote.isAuthenticated} onSelect={handleSelect} />
@@ -248,10 +252,12 @@ export function GamePrototype() {
           {supportedIdol && remote.isAuthenticated ? <IdolImageUploadPanel idol={supportedIdol} isUploading={remote.isUploadingImage} onSubmit={remote.submitIdolImage} /> : <section className="rounded-2xl border border-slate-700 bg-slate-900 p-4 text-sm text-slate-300"><p>로그인 후 이용할 수 있습니다.</p><p className="mt-1 text-xs text-slate-500">점령, 공격, 응원 아이돌 변경과 이미지 업로드는 로그인이 필요합니다.</p><div className="mt-3 flex gap-3"><Link href="/login" className="font-bold text-rose-300">로그인</Link><Link href="/signup" className="font-bold text-slate-200">회원가입</Link></div></section>}
         </div>
       </section>
-      <p className="shrink-0 border-t border-slate-800 px-4 py-2 text-center text-[11px] text-slate-500">
-        공개 데모의 안정성을 위해 행동 간 짧은 대기 시간이 적용됩니다. · 본 서비스는 비공식 팬 제작 프로토타입이며 각 아티스트 및 소속사와 관련이 없습니다. 현재 대표 이미지는 직접 제작한 워드마크 목업입니다.
-      </p>
+      <div className="flex shrink-0 flex-wrap items-center justify-center gap-x-3 border-t border-slate-800 px-4 py-2 text-center text-[11px] text-slate-500">
+        <p>공개 데모의 안정성을 위해 행동 간 짧은 대기 시간이 적용됩니다. · 본 서비스는 비공식 팬 제작 프로토타입이며 각 아티스트 및 소속사와 관련이 없습니다. 현재 대표 이미지는 직접 제작한 워드마크 목업입니다.</p>
+        <button type="button" onClick={() => setIsFeedbackOpen(true)} className="font-bold text-sky-300 hover:text-sky-200">건의·오류 신고</button>
+      </div>
       {remote.isAuthenticated && isMyPageOpen && remote.profile && remote.player ? <MyPageModal profile={remote.profile} player={remote.player} idols={idols} supportedIdol={supportedIdol} factionTerritoryCount={factionTerritoryCount} isAdmin={remote.isAdmin} onClose={closeMyPage} onChangeIdol={remote.changeSupportedIdol} onLogout={async () => { await remote.logout(); closeMyPage(); }} /> : null}
+      {isFeedbackOpen ? <FeedbackModal initialCategory={selectedOwner?.representativeImageSrc ? "image_report" : "bug"} initialTileId={selectedTile?.id ?? null} initialImageUrl={selectedOwner?.representativeImageSrc ?? null} onClose={() => setIsFeedbackOpen(false)} /> : null}
     </main>
   );
 }

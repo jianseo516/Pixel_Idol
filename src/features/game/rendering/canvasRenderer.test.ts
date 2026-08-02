@@ -42,6 +42,7 @@ describe("representative image canvas rendering", () => {
       restore: vi.fn(),
       globalAlpha: 1,
       globalCompositeOperation: "source-over",
+      imageSmoothingEnabled: true,
     } as unknown as CanvasRenderingContext2D;
   }
 
@@ -67,6 +68,7 @@ describe("representative image canvas rendering", () => {
       28,
       28,
     );
+    expect(context.imageSmoothingEnabled).toBe(false);
   });
 
   it("does not draw when the clip path has no visible region tile", () => {

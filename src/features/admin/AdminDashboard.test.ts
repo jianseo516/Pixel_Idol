@@ -4,8 +4,8 @@ import { describe, expect, it } from "vitest";
 const source = readFileSync("src/features/admin/AdminDashboard.tsx", "utf8");
 
 describe("minimal admin dashboard", () => {
-  it("contains exactly seven SQL cards plus the online presence card", () => {
-    expect(source.match(/\["(totalUsers|newUsersToday|newUsers7d|activeUsersToday|activeUsers7d|totalImageUploads|imageUploads24h)"/g)).toHaveLength(7);
+  it("contains nine SQL cards plus the online presence card", () => {
+    expect(source.match(/\["(totalUsers|newUsersToday|newUsers7d|activeUsersToday|activeUsers7d|totalImageUploads|imageUploads24h|pendingFeedbackCount|pendingImageReportCount)"/g)).toHaveLength(9);
     expect(source).toContain("현재 온라인 사용자");
   });
   it("provides access errors, skeletons, retry, refresh, and navigation", () => {

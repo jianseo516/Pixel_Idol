@@ -7,6 +7,7 @@ import { isPermanentUser } from "@/features/auth/authRepository";
 import { isCurrentUserAdmin, loadAdminSummary, type AdminSummary } from "./adminData";
 import { useGamePresence } from "./useGamePresence";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { FeedbackAdminPanel } from "./FeedbackAdminPanel";
 
 type AccessStatus = "loading" | "ready" | "forbidden" | "error";
 
@@ -18,6 +19,8 @@ const STAT_CARDS: readonly [keyof AdminSummary, string, string][] = [
   ["activeUsers7d", "최근 7일 활동 사용자", "최근 7×24시간 고유 활동 사용자"],
   ["totalImageUploads", "전체 이미지 업로드", "성공적으로 등록된 전체 submission"],
   ["imageUploads24h", "최근 24시간 이미지 업로드", "현재 시각 기준 최근 24시간"],
+  ["pendingFeedbackCount", "미처리 피드백", "신규 또는 검토 중인 제안·신고"],
+  ["pendingImageReportCount", "미처리 이미지 신고", "신규 또는 검토 중인 이미지 신고"],
 ];
 
 export function AdminDashboard() {
@@ -70,5 +73,5 @@ export function AdminDashboard() {
     {access === "error" ? <section className="mt-8 rounded-2xl border border-rose-400/30 bg-slate-900 p-6"><p className="font-bold text-rose-200">관리자 통계를 불러오지 못했습니다.</p><button onClick={() => void refresh()} className="mt-4 rounded-lg bg-rose-500 px-4 py-2 font-bold">재시도</button></section> : null}
     <section className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {loading && !summary ? Array.from({ length: 8 }, (_, index) => <div key={index} aria-label="통계 불러오는 중" className="h-36 animate-pulse rounded-2xl bg-slate-800" />) : <>{cards.map((card) => <article key={card.title} className="rounded-2xl border border-slate-700 bg-slate-900 p-5"><h2 className="text-sm font-bold text-slate-300">{card.title}</h2><p className="mt-3 text-4xl font-black">{card.value.toLocaleString("ko-KR")}</p><p className="mt-3 text-xs leading-5 text-slate-500">{card.description}</p></article>)}<article className="rounded-2xl border border-slate-700 bg-slate-900 p-5"><h2 className="text-sm font-bold text-slate-300">현재 온라인 사용자</h2>{presence.status === "connected" && presence.onlineCount !== null ? <p className="mt-3 text-4xl font-black">{presence.onlineCount.toLocaleString("ko-KR")}</p> : <p className="mt-3 text-lg font-bold text-amber-300">{presence.status === "error" ? "연결 실패" : "집계 중"}</p>}<p className="mt-3 text-xs leading-5 text-slate-500">게임 Presence의 고유 로그인 사용자</p></article></>}
-    </section><p className="mt-5 text-right text-xs text-slate-500">마지막 갱신: {lastUpdatedAt ? lastUpdatedAt.toLocaleString("ko-KR") : "-"}</p></div></main>;
+    </section><p className="mt-5 text-right text-xs text-slate-500">마지막 갱신: {lastUpdatedAt ? lastUpdatedAt.toLocaleString("ko-KR") : "-"}</p><FeedbackAdminPanel enabled={access === "ready"} /></div></main>;
 }
