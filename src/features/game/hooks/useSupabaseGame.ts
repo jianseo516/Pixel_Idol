@@ -8,8 +8,12 @@ import {
   claimTileRemote,
   ensureAnonymousSession,
   loadGameSnapshot,
+  loadIdolRows,
   loadTileRows,
+  submitIdolImageRemote,
 } from "@/features/game/data/gameRepository";
+import { reduceIdolRealtimeUpdate } from "@/features/game/data/idolRealtimeReducer";
+import type { IdolImageMimeType } from "@/features/game/data/idolImageUpload";
 import {
   createTileRealtimeState,
   mergeTileSnapshot,
@@ -23,7 +27,7 @@ import {
   shouldSynchronizeOnVisibilityChange,
 } from "@/features/game/data/requestControl";
 import type { Coordinate, GameState, Idol } from "@/features/game/types/game";
-import type { PlayerRow, TileActionRpcResult, TileRow } from "@/features/game/types/database";
+import type { IdolRow, PlayerRow, TileActionRpcResult, TileRow } from "@/features/game/types/database";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type LoadStatus = "loading" | "ready" | "error";
@@ -48,10 +52,13 @@ export function useSupabaseGame() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
   const [isSynchronizing, setIsSynchronizing] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [realtimeStatus, setRealtimeStatus] =
     useState<RealtimeConnectionStatus>("connecting");
   const mutationRunnerRef = useRef(createExclusiveTaskRunner());
   const synchronizationRunnerRef = useRef(createSingleFlightRunner());
+  const idolSynchronizationRunnerRef = useRef(createSingleFlightRunner());
+  const uploadRunnerRef = useRef(createExclusiveTaskRunner());
   const lastVisibilityRef = useRef<DocumentVisibilityState>("visible");
   const tileRealtimeRef = useRef<TileRealtimeState>(EMPTY_TILE_REALTIME_STATE);
 
@@ -149,6 +156,21 @@ export function useSupabaseGame() {
     }
   }), [gameState?.season.id]);
 
+  const mergeIdolRow = useCallback((row: IdolRow) => {
+    setGameState((current) => current
+      ? { ...current, idols: reduceIdolRealtimeUpdate(current.idols, row) }
+      : current);
+  }, []);
+
+  const synchronizeIdols = useCallback(() => idolSynchronizationRunnerRef.current.run(async () => {
+    const rows = await loadIdolRows(getSupabaseBrowserClient());
+    setGameState((current) => {
+      if (!current) return current;
+      const idols = rows.reduce(reduceIdolRealtimeUpdate, current.idols);
+      return idols === current.idols ? current : { ...current, idols };
+    });
+  }), []);
+
   useEffect(() => {
     const seasonId = gameState?.season.id;
     if (!seasonId) return;
@@ -190,6 +212,26 @@ export function useSupabaseGame() {
       void client.removeChannel(channel);
     };
   }, [gameState?.season.id, mergeTileRow, synchronizeTiles]);
+
+  useEffect(() => {
+    const seasonId = gameState?.season.id;
+    if (!seasonId) return;
+    const client = getSupabaseBrowserClient();
+    let active = true;
+    const channel = client.channel(`idols:${seasonId}`)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "idols" }, (payload) => {
+        if (active) mergeIdolRow(payload.new as IdolRow);
+      })
+      .subscribe((channelStatus) => {
+        if (active && channelStatus === "SUBSCRIBED") {
+          void synchronizeIdols().catch(() => undefined);
+        }
+      });
+    return () => {
+      active = false;
+      void client.removeChannel(channel);
+    };
+  }, [gameState?.season.id, mergeIdolRow, synchronizeIdols]);
 
   useEffect(() => {
     lastVisibilityRef.current = document.visibilityState;
@@ -277,17 +319,42 @@ export function useSupabaseGame() {
     [runTileAction],
   );
 
+  const submitIdolImage = useCallback(async (input: {
+    readonly file: File;
+    readonly width: number;
+    readonly height: number;
+    readonly mimeType: IdolImageMimeType;
+  }) => {
+    const seasonId = gameState?.season.id;
+    const idolId = gameState?.supportedIdolId;
+    if (!seasonId || !idolId) return null;
+    const result = await uploadRunnerRef.current.tryRun(async () => {
+      setIsUploadingImage(true);
+      try {
+        return await submitIdolImageRemote(getSupabaseBrowserClient(), {
+          seasonId, idolId, ...input,
+        });
+      } finally {
+        setIsUploadingImage(false);
+      }
+    });
+    if (result.value) mergeIdolRow(result.value.idol);
+    return result.value;
+  }, [gameState?.season.id, gameState?.supportedIdolId, mergeIdolRow]);
+
   return {
     gameState,
     status,
     errorMessage,
     isPending,
     isSynchronizing,
+    isUploadingImage,
     realtimeStatus,
     retry: initialize,
     synchronizeTiles,
     changeSupportedIdol,
     claimTile,
     attackTile,
+    submitIdolImage,
   } as const;
 }

@@ -8,6 +8,7 @@ import {
 } from "@/features/game/mock/createInitialGame";
 import {
   calculateImagePlacement,
+  calculateCoverPlacement,
   createRepresentativeLayerSpecs,
   getContainPlacement,
   getCoverPlacement,
@@ -17,6 +18,7 @@ import {
   getRepresentativeDamageOpacity,
   getRepresentativeImagePlacement,
   getRepresentativeImageSlot,
+  shouldRenderRepresentativeImage,
 } from "@/features/game/rendering/representativeImage";
 import type {
   Coordinate,
@@ -174,17 +176,33 @@ describe("representative image geometry", () => {
     });
   });
 
-  it("uses contain as the configured default placement", () => {
-    expect(GAME_CONFIG.representativeImageFit).toBe("contain");
+  it("uses cover as the configured default placement", () => {
+    expect(GAME_CONFIG.representativeImageFit).toBe("cover");
     expect(
       getRepresentativeImagePlacement(
         { width: 200, height: 100 },
         { x: 10, y: 20, width: 100, height: 100 },
       ),
-    ).toEqual(getContainPlacement(
+    ).toEqual(getCoverPlacement(
       { width: 200, height: 100 },
       { x: 10, y: 20, width: 100, height: 100 },
     ));
+  });
+
+  it.each([
+    { width: 400, height: 100 },
+    { width: 100, height: 400 },
+    { width: 200, height: 200 },
+  ])("fills bounds and crops $width×$height from the center", (sourceSize) => {
+    const bounds = Object.freeze({ x: 10, y: 20, width: 160, height: 90 });
+    const input = Object.freeze({ ...sourceSize });
+    const placement = calculateCoverPlacement(input, bounds);
+    expect(placement.destination).toEqual(bounds);
+    expect(placement.source.x + placement.source.width / 2).toBeCloseTo(sourceSize.width / 2);
+    expect(placement.source.y + placement.source.height / 2).toBeCloseTo(sourceSize.height / 2);
+    expect(placement.source.width / placement.source.height).toBeCloseTo(bounds.width / bounds.height);
+    expect(input).toEqual(sourceSize);
+    expect(bounds).toEqual({ x: 10, y: 20, width: 160, height: 90 });
   });
 
   it("does not mutate image size or destination bounds", () => {
@@ -444,6 +462,49 @@ describe("aspect-aware representative image slot", () => {
 });
 
 describe("representative layer specs", () => {
+  function createRectangleRegion(width: number, height: number): TerritoryRegion {
+    return createRegion(
+      "bts",
+      `bts:0,0:${width}x${height}`,
+      Array.from({ length: width * height }, (_, index) => ({
+        x: index % width,
+        y: Math.floor(index / width),
+      })),
+    );
+  }
+
+  it.each([
+    [2, 2, false],
+    [3, 5, false],
+    [4, 4, true],
+    [5, 4, true],
+  ])("applies the minimum display threshold to a %sx%s region", (width, height, expected) => {
+    expect(shouldRenderRepresentativeImage(createRectangleRegion(width, height))).toBe(expected);
+  });
+
+  it("requires both minimum bounds dimensions even with at least 16 tiles", () => {
+    expect(shouldRenderRepresentativeImage(createRectangleRegion(3, 6))).toBe(false);
+    expect(shouldRenderRepresentativeImage(createRectangleRegion(6, 3))).toBe(false);
+  });
+
+  it("marks a small layer spec as hidden and an expanded layer as visible", () => {
+    const state = createInitialGameState();
+    const idol = state.idols[MOCK_IDOLS[0].id];
+    const small = createRectangleRegion(2, 2);
+    const large = createRectangleRegion(4, 4);
+    const smallSpec = createRepresentativeLayerSpecs(
+      { [idol.id]: createSummary(idol.id, [small], small) },
+      { [idol.id]: idol },
+    )[0];
+    const largeSpec = createRepresentativeLayerSpecs(
+      { [idol.id]: createSummary(idol.id, [large], large) },
+      { [idol.id]: idol },
+    )[0];
+
+    expect(smallSpec.shouldRender).toBe(false);
+    expect(largeSpec.shouldRender).toBe(true);
+  });
+
   it("uses only the actual coordinates of an L-shaped largest region", () => {
     const state = createInitialGameState();
     const coordinates = [

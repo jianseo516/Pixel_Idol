@@ -1,5 +1,5 @@
 insert into public.seasons (id, name, starts_at, ends_at, status, map_width, map_height)
-values ('season-1', '공동 플레이 데모 시즌 1', '2025-01-01T00:00:00Z', '2030-01-01T00:00:00Z', 'active', 90, 54)
+values ('season-1', '공동 플레이 데모 시즌 1', '2025-01-01T00:00:00Z', '2030-01-01T00:00:00Z', 'active', 360, 216)
 on conflict (id) do update set
   name = excluded.name, starts_at = excluded.starts_at, ends_at = excluded.ends_at,
   status = excluded.status, map_width = excluded.map_width, map_height = excluded.map_height;
@@ -19,20 +19,20 @@ on conflict (id) do update set
   sort_order = excluded.sort_order;
 
 insert into public.tiles (season_id, x, y, owner_id, hp) values
-  ('season-1', 5, 5, 'bts', 5), ('season-1', 6, 5, 'bts', 5),
-  ('season-1', 5, 6, 'bts', 5), ('season-1', 6, 6, 'bts', 5),
-  ('season-1', 33, 5, 'blackpink', 5), ('season-1', 34, 5, 'blackpink', 5),
-  ('season-1', 33, 6, 'blackpink', 5), ('season-1', 34, 6, 'blackpink', 5),
-  ('season-1', 70, 5, 'seventeen', 5), ('season-1', 71, 5, 'seventeen', 5),
-  ('season-1', 70, 6, 'seventeen', 5), ('season-1', 71, 6, 'seventeen', 5),
-  ('season-1', 10, 25, 'stray-kids', 5), ('season-1', 11, 25, 'stray-kids', 5),
-  ('season-1', 10, 26, 'stray-kids', 5), ('season-1', 11, 26, 'stray-kids', 5),
-  ('season-1', 43, 25, 'aespa', 5), ('season-1', 44, 25, 'aespa', 5),
-  ('season-1', 43, 26, 'aespa', 5), ('season-1', 44, 26, 'aespa', 5),
-  ('season-1', 75, 25, 'ive', 5), ('season-1', 76, 25, 'ive', 5),
-  ('season-1', 75, 26, 'ive', 5), ('season-1', 76, 26, 'ive', 5),
-  ('season-1', 25, 45, 'enhypen', 5), ('season-1', 26, 45, 'enhypen', 5),
-  ('season-1', 25, 46, 'enhypen', 5), ('season-1', 26, 46, 'enhypen', 5),
-  ('season-1', 65, 45, 'le-sserafim', 5), ('season-1', 66, 45, 'le-sserafim', 5),
-  ('season-1', 65, 46, 'le-sserafim', 5), ('season-1', 66, 46, 'le-sserafim', 5)
+  ('season-1', 140, 86, 'bts', 5), ('season-1', 141, 86, 'bts', 5),
+  ('season-1', 140, 87, 'bts', 5), ('season-1', 141, 87, 'bts', 5),
+  ('season-1', 168, 86, 'blackpink', 5), ('season-1', 169, 86, 'blackpink', 5),
+  ('season-1', 168, 87, 'blackpink', 5), ('season-1', 169, 87, 'blackpink', 5),
+  ('season-1', 205, 86, 'seventeen', 5), ('season-1', 206, 86, 'seventeen', 5),
+  ('season-1', 205, 87, 'seventeen', 5), ('season-1', 206, 87, 'seventeen', 5),
+  ('season-1', 145, 106, 'stray-kids', 5), ('season-1', 146, 106, 'stray-kids', 5),
+  ('season-1', 145, 107, 'stray-kids', 5), ('season-1', 146, 107, 'stray-kids', 5),
+  ('season-1', 178, 106, 'aespa', 5), ('season-1', 179, 106, 'aespa', 5),
+  ('season-1', 178, 107, 'aespa', 5), ('season-1', 179, 107, 'aespa', 5),
+  ('season-1', 210, 106, 'ive', 5), ('season-1', 211, 106, 'ive', 5),
+  ('season-1', 210, 107, 'ive', 5), ('season-1', 211, 107, 'ive', 5),
+  ('season-1', 160, 126, 'enhypen', 5), ('season-1', 161, 126, 'enhypen', 5),
+  ('season-1', 160, 127, 'enhypen', 5), ('season-1', 161, 127, 'enhypen', 5),
+  ('season-1', 200, 126, 'le-sserafim', 5), ('season-1', 201, 126, 'le-sserafim', 5),
+  ('season-1', 200, 127, 'le-sserafim', 5), ('season-1', 201, 127, 'le-sserafim', 5)
 on conflict (season_id, x, y) do update set owner_id = excluded.owner_id, hp = excluded.hp;

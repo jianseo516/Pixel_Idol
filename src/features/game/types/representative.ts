@@ -42,6 +42,7 @@ export interface RepresentativeCanvasLayerSpec {
   readonly coordinates: readonly Coordinate[];
   readonly bounds: TerritoryBounds;
   readonly opacity: number;
+  readonly shouldRender: boolean;
 }
 
 export interface RepresentativeCanvasLayer
@@ -49,5 +50,8 @@ export interface RepresentativeCanvasLayer
   readonly image: CanvasImageSource;
   readonly imageWidth: number;
   readonly imageHeight: number;
-  readonly slot: RepresentativeImageSlot;
+  readonly placement: ImagePlacement;
+  readonly renderRevision: number;
+  readonly fallback: boolean;
+  readonly displayedImageSrc: string;
 }

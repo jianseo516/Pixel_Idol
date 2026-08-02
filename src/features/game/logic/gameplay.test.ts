@@ -17,7 +17,7 @@ import type {
   Tile,
 } from "@/features/game/types/game";
 
-const ADJACENT = { x: 4, y: 5 } as const;
+const ADJACENT = { x: 139, y: 86 } as const;
 const FAR = { x: 20, y: 15 } as const;
 const LARGE_MAP_SIZE: MapSize = { width: 360, height: 216 };
 
@@ -80,7 +80,7 @@ describe("getTileActionPreview", () => {
   });
 
   it("returns NONE for a tile owned by the supported idol", () => {
-    expect(getTileActionPreview(createInitialGameState(), { x: 5, y: 5 })).toMatchObject({
+    expect(getTileActionPreview(createInitialGameState(), { x: 140, y: 86 })).toMatchObject({
       actionType: "NONE",
       reasonCode: "OWN_TILE",
       reasonMessage: "내 영토입니다.",
@@ -130,14 +130,14 @@ describe("getTileActionPreview", () => {
 describe("supported idol changes", () => {
   it("keeps stored tile count, ownership, and HP unchanged", () => {
     const state = createInitialGameState();
-    const tileBefore = getStoredTile(state, { x: 5, y: 5 });
+    const tileBefore = getStoredTile(state, { x: 140, y: 86 });
     const changed = changeSupportedIdol(state, MOCK_IDOLS[1].id);
 
     expect(changed.supportedIdolId).toBe(MOCK_IDOLS[1].id);
     expect(changed.tiles).toBe(state.tiles);
     expect(Object.keys(changed.tiles)).toHaveLength(Object.keys(state.tiles).length);
-    expect(getStoredTile(changed, { x: 5, y: 5 })).toBe(tileBefore);
-    expect(getStoredTile(changed, { x: 5, y: 5 })).toMatchObject({
+    expect(getStoredTile(changed, { x: 140, y: 86 })).toBe(tileBefore);
+    expect(getStoredTile(changed, { x: 140, y: 86 })).toMatchObject({
       ownerId: tileBefore?.ownerId,
       hp: tileBefore?.hp,
     });

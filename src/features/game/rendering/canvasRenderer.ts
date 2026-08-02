@@ -29,9 +29,16 @@ const CLAIMABLE_FILL = "rgba(45, 212, 191, 0.14)";
 const CLAIMABLE_STROKE = "rgba(45, 212, 191, 0.95)";
 const ATTACKABLE_FILL = "rgba(251, 146, 60, 0.14)";
 const ATTACKABLE_STROKE = "rgba(251, 146, 60, 0.98)";
-const REPRESENTATIVE_BORDER = "rgba(253, 224, 71, 0.98)";
-const REPRESENTATIVE_BORDER_BACKDROP = "rgba(15, 23, 42, 0.95)";
+const REPRESENTATIVE_BORDER = "rgba(248, 250, 252, 0.2)";
 const OWNERSHIP_BOUNDARY_COLOR = "rgba(148, 163, 184, 0.48)";
+
+export function getGridStepForZoom(zoom: number): number {
+  return zoom >= GAME_CONFIG.detailedGridMinZoom
+    ? 1
+    : zoom >= GAME_CONFIG.coarseGridMinZoom
+      ? GAME_CONFIG.coarseGridStep
+      : 0;
+}
 
 interface RenderGameMapOptions {
   readonly context: CanvasRenderingContext2D;
@@ -57,7 +64,7 @@ function isCoordinateVisible(
   );
 }
 
-function drawRepresentativeLayers(
+export function drawRepresentativeLayers(
   context: CanvasRenderingContext2D,
   layers: readonly RepresentativeCanvasLayer[],
   viewport: Viewport,
@@ -81,28 +88,98 @@ function drawRepresentativeLayers(
       context.rect(screen.x, screen.y, tileScreenSize, tileScreenSize);
     }
     if (!hasVisibleCoordinate) {
+      if (process.env.NODE_ENV === "development") {
+        console.debug("[representative-image-draw]", {
+          idolId: layer.ownerId,
+          skipped: "대표 영역과 현재 visible range가 교차하지 않음",
+          regionTileCount: layer.coordinates.length,
+          regionBounds: layer.bounds,
+          visibleRange: range,
+          clipPathCommandCount: 0,
+        });
+      }
       context.restore();
       continue;
     }
 
     context.clip();
-    const placement = layer.slot;
+    const placement = layer.placement;
     const destination = worldToScreen(
       { x: placement.destination.x, y: placement.destination.y },
       viewport,
     );
     context.globalAlpha = layer.opacity;
+    if (process.env.NODE_ENV === "development") {
+      const image = layer.image as CanvasImageSource & {
+        readonly complete?: boolean;
+        readonly naturalWidth?: number;
+        readonly naturalHeight?: number;
+      };
+      console.debug("[representative-image-draw]", {
+        idolId: layer.ownerId,
+        imageComplete: image.complete ?? null,
+        naturalWidth: image.naturalWidth ?? layer.imageWidth,
+        naturalHeight: image.naturalHeight ?? layer.imageHeight,
+        regionTileCount: layer.coordinates.length,
+        regionBounds: layer.bounds,
+        sourceRect: placement.source,
+        destinationWorldRect: placement.destination,
+        destinationScreenRect: {
+          x: destination.x,
+          y: destination.y,
+          width: placement.destination.width * viewport.zoom,
+          height: placement.destination.height * viewport.zoom,
+        },
+        visibleRange: range,
+        intersectsVisibleRange: true,
+        clipPathCommandCount: layer.coordinates.filter((coordinate) =>
+          isCoordinateVisible(coordinate, range)).length,
+        globalAlpha: context.globalAlpha,
+        globalCompositeOperation: context.globalCompositeOperation,
+      });
+    }
     context.drawImage(
       layer.image,
-      0,
-      0,
-      layer.imageWidth,
-      layer.imageHeight,
+      placement.source.x,
+      placement.source.y,
+      placement.source.width,
+      placement.source.height,
       destination.x,
       destination.y,
       placement.destination.width * viewport.zoom,
       placement.destination.height * viewport.zoom,
     );
+    context.restore();
+  }
+}
+
+function drawRepresentativeTint(
+  context: CanvasRenderingContext2D,
+  state: GameState,
+  layers: readonly RepresentativeCanvasLayer[],
+  viewport: Viewport,
+  range: VisibleTileRange,
+  tileScreenSize: number,
+): void {
+  if (viewport.zoom < GAME_CONFIG.representativeImageMinZoom) return;
+  for (const layer of layers) {
+    const color = state.idols[layer.ownerId]?.color;
+    if (!color) continue;
+    context.save();
+    context.beginPath();
+    let visible = false;
+    for (const coordinate of layer.coordinates) {
+      if (!isCoordinateVisible(coordinate, range)) continue;
+      visible = true;
+      const screen = tileToScreen(coordinate, viewport);
+      context.rect(screen.x, screen.y, tileScreenSize, tileScreenSize);
+    }
+    if (visible) {
+      context.clip();
+      context.globalAlpha = GAME_CONFIG.representativeImageTintOpacity;
+      context.fillStyle = color;
+      context.fillRect(0, 0, viewport.width, viewport.height);
+    }
     context.restore();
   }
 }
@@ -177,11 +254,8 @@ function drawRepresentativeBoundary(
     }
   }
   context.lineCap = "square";
-  context.strokeStyle = REPRESENTATIVE_BORDER_BACKDROP;
-  context.lineWidth = Math.max(4, viewport.zoom * 3.5);
-  context.stroke();
   context.strokeStyle = REPRESENTATIVE_BORDER;
-  context.lineWidth = Math.max(2, viewport.zoom * 1.8);
+  context.lineWidth = Math.max(1, viewport.zoom * 0.8);
   context.stroke();
 }
 
@@ -288,37 +362,53 @@ export function renderGameMap({
 
   const tileScreenSize = GAME_CONFIG.tileSize * viewport.zoom;
   const range = getVisibleTileRange(viewport, state.mapSize);
+  const mapOrigin = tileToScreen({ x: 0, y: 0 }, viewport);
 
-  for (let y = range.startY; y < range.endY; y += 1) {
-    for (let x = range.startX; x < range.endX; x += 1) {
-      const screen = tileToScreen({ x, y }, viewport);
-      context.fillStyle = EMPTY_TILE_COLOR;
-      context.fillRect(screen.x, screen.y, tileScreenSize, tileScreenSize);
+  context.fillStyle = EMPTY_TILE_COLOR;
+  context.fillRect(
+    mapOrigin.x,
+    mapOrigin.y,
+    state.mapSize.width * tileScreenSize,
+    state.mapSize.height * tileScreenSize,
+  );
+
+  const gridStep = getGridStepForZoom(viewport.zoom);
+  if (gridStep > 0) {
+    context.beginPath();
+    const firstX = Math.ceil(range.startX / gridStep) * gridStep;
+    const firstY = Math.ceil(range.startY / gridStep) * gridStep;
+    for (let x = firstX; x <= range.endX; x += gridStep) {
+      const screen = tileToScreen({ x, y: 0 }, viewport);
+      context.moveTo(screen.x, Math.max(0, mapOrigin.y));
+      context.lineTo(screen.x, Math.min(viewport.height, mapOrigin.y + state.mapSize.height * tileScreenSize));
     }
+    for (let y = firstY; y <= range.endY; y += gridStep) {
+      const screen = tileToScreen({ x: 0, y }, viewport);
+      context.moveTo(Math.max(0, mapOrigin.x), screen.y);
+      context.lineTo(Math.min(viewport.width, mapOrigin.x + state.mapSize.width * tileScreenSize), screen.y);
+    }
+    context.lineWidth = 1;
+    context.strokeStyle = GRID_COLOR;
+    context.stroke();
   }
 
-  context.lineWidth = 1;
-  context.strokeStyle = GRID_COLOR;
-  for (let y = range.startY; y < range.endY; y += 1) {
-    for (let x = range.startX; x < range.endX; x += 1) {
-      const screen = tileToScreen({ x, y }, viewport);
-      context.strokeRect(screen.x, screen.y, tileScreenSize, tileScreenSize);
-    }
-  }
-
-  for (let y = range.startY; y < range.endY; y += 1) {
-    for (let x = range.startX; x < range.endX; x += 1) {
-      const coordinate = { x, y };
-      const tile = getStoredTile(state, coordinate);
-      if (!tile) continue;
-      const screen = tileToScreen(coordinate, viewport);
-      context.fillStyle = getTileColor(tile, state);
-      context.fillRect(screen.x, screen.y, tileScreenSize, tileScreenSize);
-    }
+  for (const tile of Object.values(state.tiles)) {
+    if (!isCoordinateVisible(tile.coordinate, range)) continue;
+    const screen = tileToScreen(tile.coordinate, viewport);
+    context.fillStyle = getTileColor(tile, state);
+    context.fillRect(screen.x, screen.y, tileScreenSize, tileScreenSize);
   }
 
   drawRepresentativeLayers(
     context,
+    representativeLayers,
+    viewport,
+    range,
+    tileScreenSize,
+  );
+  drawRepresentativeTint(
+    context,
+    state,
     representativeLayers,
     viewport,
     range,
@@ -335,7 +425,6 @@ export function renderGameMap({
 
   drawOwnershipBoundaries(context, state, viewport, range, tileScreenSize);
 
-  const mapOrigin = tileToScreen({ x: 0, y: 0 }, viewport);
   context.strokeStyle = MAP_BORDER_COLOR;
   context.lineWidth = 2;
   context.strokeRect(

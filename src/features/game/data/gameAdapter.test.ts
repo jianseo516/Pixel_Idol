@@ -10,8 +10,8 @@ const ROWS: GameSnapshotRows = {
     starts_at: "2026-01-01T00:00:00Z",
     ends_at: "2027-01-01T00:00:00Z",
     status: "active",
-    map_width: 90,
-    map_height: 54,
+    map_width: 360,
+    map_height: 216,
   },
   idols: [
     {
@@ -43,7 +43,7 @@ describe("Supabase game adapter", () => {
   it("maps public rows to the existing sparse GameState", () => {
     const state = adaptSupabaseRowsToGameState(ROWS);
 
-    expect(state.mapSize).toEqual({ width: 90, height: 54 });
+    expect(state.mapSize).toEqual({ width: 360, height: 216 });
     expect(state.supportedIdolId).toBe("bts");
     expect(state.tokens).toBe(87);
     expect(Object.keys(state.tiles)).toHaveLength(1);

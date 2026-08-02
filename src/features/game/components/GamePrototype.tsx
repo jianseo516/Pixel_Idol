@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { IdolSelector } from "@/features/game/components/IdolSelector";
+import { IdolImageUploadPanel } from "@/features/game/components/IdolImageUploadPanel";
 import { TileInfoPanel, type GameActionMessage } from "@/features/game/components/TileInfoPanel";
 import { TileMapCanvas } from "@/features/game/components/TileMapCanvas";
 import { TerritorySummaryPanel } from "@/features/game/components/TerritorySummaryPanel";
@@ -185,7 +186,10 @@ export function GamePrototype() {
         <div className="relative h-[65dvh] min-h-0 min-w-0 overflow-hidden rounded-2xl border border-slate-700 bg-slate-950 shadow-2xl shadow-black/30 lg:h-full">
           <TileMapCanvas state={gameState} selectedCoordinate={selectedCoordinate} initialFocusWorldPoint={territoryCenter} actionableTiles={actionableTiles} representativeBoundary={representativeBoundary} representativeLayerSpecs={representativeLayerSpecs} onSelect={handleSelect} />
         </div>
-        <TileInfoPanel selectedTile={selectedTile} owner={selectedOwner} tokens={gameState.tokens} preview={actionPreview} actionMessage={actionMessage} isPending={remote.isPending} onAction={() => void handleAction()} onClear={handleClear} />
+        <div className="grid min-h-0 gap-3 overflow-y-auto">
+          <TileInfoPanel selectedTile={selectedTile} owner={selectedOwner} tokens={gameState.tokens} preview={actionPreview} actionMessage={actionMessage} isPending={remote.isPending} onAction={() => void handleAction()} onClear={handleClear} />
+          {supportedIdol ? <IdolImageUploadPanel idol={supportedIdol} isUploading={remote.isUploadingImage} onSubmit={remote.submitIdolImage} /> : null}
+        </div>
       </section>
       <p className="shrink-0 border-t border-slate-800 px-4 py-2 text-center text-[11px] text-slate-500">
         공개 데모의 안정성을 위해 행동 간 짧은 대기 시간이 적용됩니다. · 본 서비스는 비공식 팬 제작 프로토타입이며 각 아티스트 및 소속사와 관련이 없습니다. 현재 대표 이미지는 직접 제작한 워드마크 목업입니다.

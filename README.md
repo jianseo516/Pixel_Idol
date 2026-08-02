@@ -1,6 +1,6 @@
 # 아이돌 픽셀 공동 플레이 데모
 
-Next.js, TypeScript, HTML Canvas와 Supabase를 사용하는 시즌제 영토 점령 프로토타입이다. 지도는 희소 타일만 저장하며 점령·공격 결과는 PostgreSQL RPC가 최종 결정한다. 이번 단계에는 Realtime 구독이 포함되지 않는다.
+Next.js, TypeScript, HTML Canvas와 Supabase를 사용하는 시즌제 영토 점령 프로토타입이다. 지도는 희소 타일만 저장하며 점령·공격 결과는 PostgreSQL RPC가 최종 결정한다. 타일과 대표 이미지 변경은 Realtime으로 공유된다.
 
 ## 로컬 실행
 
@@ -20,11 +20,16 @@ npm run dev
    - `supabase/migrations/202608020002_tiles_realtime.sql`
    - `supabase/migrations/202608020003_real_idol_roster.sql`
    - `supabase/migrations/202608020004_demo_action_cooldown.sql`
+   - `supabase/migrations/202608020005_raw_idol_images.sql`
+   - `supabase/migrations/202608020006_expand_world_map.sql`
    - `supabase/seed.sql`
 
    `202608020003_real_idol_roster.sql`은 개발 단계의 더미 roster를 교체하는 일회성
    초기화 migration입니다. `players`와 `tiles`를 비운 뒤 8개 그룹과 시작 타일을
    다시 넣으므로, 운영 데이터가 생긴 뒤에는 다시 실행하지 마세요.
+   migration은 번호 순서대로 한 번만 실행합니다. 이미 적용된 migration을 다시 실행하지 마세요.
+   기존 DB는 새로 추가된 005와 006만 실행하며, `seed.sql`은 신규 설치용입니다.
+   006 실행 중에는 접속 중인 클라이언트를 닫고, 완료 후 새로 열어 이동된 타일의 초기 스냅샷을 받아야 합니다.
 4. 프로젝트의 공개 URL과 publishable key를 `.env.local`에 설정한다.
 
 필요한 환경 변수 이름:
@@ -42,6 +47,7 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 - `idols`: 아이돌 이름, 대표 색상, 목업 이미지 경로
 - `tiles`: `(season_id, x, y)` 기본 키를 사용하는 점령 타일 전용 희소 저장소
 - `players`: 익명 사용자별 응원 아이돌과 토큰
+- `idol_image_submissions`: 교체·제거 이력을 포함한 대표 이미지 제출 기록
 
 `players.last_action_at`은 서버의 `now()`를 기준으로 성공한 점령·공격 시에만
 갱신됩니다. 공개 데모에서는 동일 플레이어의 행동 사이에 500ms 쿨다운을 적용합니다.
@@ -52,6 +58,32 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 - `change_supported_idol`
 - `claim_tile`
 - `attack_tile`
+- `submit_raw_idol_image`
+
+## 사용자 대표 이미지 업로드
+
+- PNG, JPEG, WebP만 허용하며 최대 크기는 3MB, 해상도는 300×300px 이상이고 한 변 5000px 이하입니다.
+- 승인이나 자동 검열 없이 마지막으로 성공한 업로드가 즉시 공용 대표 이미지가 됩니다.
+- 같은 사용자는 서버 시간 기준 60초에 한 번만 변경할 수 있습니다.
+- 파일은 `idol-community-images/{seasonId}/{idolId}/{UUID}.{확장자}`에 새 객체로 저장되고 덮어쓰지 않습니다.
+- 교체된 제출과 Storage 파일은 자동 삭제하지 않으므로 Storage 사용량이 계속 증가할 수 있습니다. 운영 전 오래된 `replaced` 파일의 보존·정리 정책이 필요합니다.
+- 일반 사용자는 active 이미지 정보와 자신의 기록만 조회할 수 있습니다.
+
+운영자 되돌리기 예시(SQL Editor 전용):
+
+```sql
+select public.rollback_idol_image('bts');
+```
+
+현재 제출 테이블을 유지한 채 향후 후보 목록, 무료 투표, 유료 응원권, 기간별 1위, 주간·시즌 대표 이미지, 관리자 검토 구조로 확장할 수 있습니다.
+
+## 360×216 세계 지도
+
+- 논리 지도는 90×54에서 360×216으로 확장되어 면적이 16배인 77,760좌표를 갖습니다.
+- 기존 시작 영토는 모두 `x + 135`, `y + 81`로 이동하여 중앙 90×54 전투 구역에 유지됩니다.
+- DB와 `GameState.tiles`에는 소유 타일만 저장하며 전체 빈 타일 객체를 생성하지 않습니다.
+- Canvas는 visible range와 희소 소유 타일만 렌더링하고, 낮은 zoom에서는 개별 격자를 숨기거나 10칸 보조 격자로 단순화합니다.
+- 최초 화면은 중앙 전투 구역, `전체 보기`는 360×216 전체, `내 영토`는 현재 보유 영토를 기준으로 표시합니다.
 
 ## 검증
 
@@ -68,6 +100,7 @@ npm audit
 
 - 플레이어 상태 Realtime 구독은 아직 없으며 자신의 RPC 응답만 반영한다.
 - 타일 Realtime은 `INSERT`, `UPDATE`만 구독한다. 플레이어 토큰은 자신의 RPC 응답으로 갱신한다.
+- 대표 이미지 업로드에는 자동 콘텐츠 검열·신고·승인 절차가 없으므로 공개 운영 전 별도 안전 정책이 필요하다.
 - 익명 계정은 브라우저 저장소가 삭제되면 새로운 사용자로 생성될 수 있다.
 - 운영 배포 전에는 RPC 호출 제한, 요청 멱등성, 감사 로그와 마이그레이션 배포 절차를 추가해야 한다.
 

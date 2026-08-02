@@ -295,6 +295,25 @@ export function createInitialViewport(
   );
 }
 
+export function createInitialBattlefieldViewport(
+  width: number,
+  height: number,
+  mapSize: MapSize = DEFAULT_MAP_SIZE,
+): Viewport {
+  const battlefieldWorldWidth = GAME_CONFIG.legacyMapWidth * GAME_CONFIG.tileSize;
+  const battlefieldWorldHeight = GAME_CONFIG.legacyMapHeight * GAME_CONFIG.tileSize;
+  const zoom = clampZoom(Math.min(
+    Math.max(width - GAME_CONFIG.viewportPadding * 2, 1) / battlefieldWorldWidth,
+    Math.max(height - GAME_CONFIG.viewportPadding * 2, 1) / battlefieldWorldHeight,
+  ));
+  const world = getMapWorldSize(mapSize);
+  return centerViewportAtWorldPoint(
+    { width, height, zoom, offsetX: 0, offsetY: 0 },
+    { x: world.x / 2, y: world.y / 2 },
+    mapSize,
+  );
+}
+
 export function resizeViewport(
   viewport: Viewport,
   width: number,

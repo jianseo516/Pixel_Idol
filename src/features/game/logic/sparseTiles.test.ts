@@ -25,7 +25,7 @@ import {
 import type { GameState, MapSize, Tile } from "@/features/game/types/game";
 
 const LARGE_MAP_SIZE: MapSize = { width: 360, height: 216 };
-const ADJACENT_TARGET = { x: 4, y: 5 } as const;
+const ADJACENT_TARGET = { x: 139, y: 86 } as const;
 
 function addEnemyTile(state: GameState): GameState {
   const id = createTileId(state.season.id, ADJACENT_TARGET);

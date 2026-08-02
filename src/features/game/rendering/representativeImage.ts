@@ -4,6 +4,7 @@ import type {
   Idol,
   IdolTerritorySummary,
   TerritoryBounds,
+  TerritoryRegion,
 } from "@/features/game/types/game";
 import type {
   ImagePlacement,
@@ -311,6 +312,13 @@ export function getCoverPlacement(
   };
 }
 
+export function calculateCoverPlacement(
+  sourceSize: { readonly width: number; readonly height: number },
+  destinationRect: Rectangle,
+): ImagePlacement {
+  return getCoverPlacement(sourceSize, destinationRect);
+}
+
 export function getRepresentativeImagePlacement(
   imageSize: { readonly width: number; readonly height: number },
   destinationBounds: Rectangle,
@@ -341,6 +349,29 @@ export function getRepresentativeDamageOpacity(
   return damageRatio * 0.58;
 }
 
+export interface RepresentativeImageRenderRequirements {
+  readonly minTileCount: number;
+  readonly minWidth: number;
+  readonly minHeight: number;
+}
+
+const DEFAULT_RENDER_REQUIREMENTS: RepresentativeImageRenderRequirements = {
+  minTileCount: GAME_CONFIG.representativeImageMinTileCount,
+  minWidth: GAME_CONFIG.representativeImageMinWidthInTiles,
+  minHeight: GAME_CONFIG.representativeImageMinHeightInTiles,
+};
+
+export function shouldRenderRepresentativeImage(
+  region: TerritoryRegion,
+  requirements: RepresentativeImageRenderRequirements = DEFAULT_RENDER_REQUIREMENTS,
+): boolean {
+  const width = region.bounds.maxX - region.bounds.minX + 1;
+  const height = region.bounds.maxY - region.bounds.minY + 1;
+  return region.size >= requirements.minTileCount
+    && width >= requirements.minWidth
+    && height >= requirements.minHeight;
+}
+
 export function createRepresentativeLayerSpecs(
   summaries: Readonly<Record<Idol["id"], IdolTerritorySummary>>,
   idols: Readonly<Record<Idol["id"], Idol>>,
@@ -360,6 +391,7 @@ export function createRepresentativeLayerSpecs(
       coordinates: region.coordinates,
       bounds: region.bounds,
       opacity: clamp(opacity, 0, 1),
+      shouldRender: shouldRenderRepresentativeImage(region),
     });
   }
   return layers;

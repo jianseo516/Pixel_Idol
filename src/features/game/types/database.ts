@@ -43,3 +43,25 @@ export interface TileActionRpcResult {
   readonly player: PlayerRow;
   readonly tile: TileRow;
 }
+
+export interface IdolImageSubmissionRow {
+  readonly id: string;
+  readonly season_id: string;
+  readonly idol_id: string;
+  readonly user_id: string;
+  readonly storage_path: string;
+  readonly public_url: string;
+  readonly original_file_name: string;
+  readonly mime_type: string;
+  readonly file_size: number;
+  readonly width: number;
+  readonly height: number;
+  readonly status: "active" | "replaced" | "removed";
+  readonly created_at: string;
+  readonly replaced_at: string | null;
+}
+
+export interface SubmitIdolImageRpcResult {
+  readonly idol: IdolRow;
+  readonly submission: IdolImageSubmissionRow;
+}

@@ -8,7 +8,9 @@ import type {
   SeasonRow,
   TileRow,
   TileActionRpcResult,
+  SubmitIdolImageRpcResult,
 } from "@/features/game/types/database";
+import { createIdolImageStoragePath, type IdolImageMimeType } from "@/features/game/data/idolImageUpload";
 
 export interface LoadedGameSnapshot {
   readonly gameState: GameState;
@@ -121,6 +123,60 @@ export async function loadTileRows(
     .eq("season_id", seasonId);
   throwIfError(error);
   return (data ?? []) as TileRow[];
+}
+
+export async function loadIdolRows(client: SupabaseClient): Promise<readonly IdolRow[]> {
+  const { data, error } = await client.from("idols")
+    .select("id,name,color,representative_image_src").order("sort_order");
+  throwIfError(error);
+  return (data ?? []) as IdolRow[];
+}
+
+export async function submitIdolImageRemote(
+  client: SupabaseClient,
+  input: {
+    readonly seasonId: string;
+    readonly idolId: string;
+    readonly file: File;
+    readonly width: number;
+    readonly height: number;
+    readonly mimeType: IdolImageMimeType;
+  },
+): Promise<SubmitIdolImageRpcResult> {
+  const submissionId = crypto.randomUUID();
+  const storagePath = createIdolImageStoragePath({
+    seasonId: input.seasonId,
+    idolId: input.idolId,
+    submissionId,
+    mimeType: input.mimeType,
+  });
+  const bucket = client.storage.from("idol-community-images");
+  const upload = await bucket.upload(storagePath, input.file, {
+    contentType: input.mimeType,
+    upsert: false,
+  });
+  throwIfError(upload.error);
+  try {
+    const result = await client.rpc("submit_raw_idol_image", {
+      p_season_id: input.seasonId,
+      p_idol_id: input.idolId,
+      p_submission_id: submissionId,
+      p_storage_path: storagePath,
+      p_original_file_name: input.file.name,
+      p_mime_type: input.mimeType,
+      p_file_size: input.file.size,
+      p_width: input.width,
+      p_height: input.height,
+    });
+    throwIfError(result.error);
+    if (!result.data) throw new Error("대표 이미지 변경 결과가 없습니다.");
+    return result.data as SubmitIdolImageRpcResult;
+  } catch (error) {
+    void bucket.remove([storagePath]).then(({ error: cleanupError }) => {
+      if (cleanupError) console.warn("업로드 실패 파일을 정리하지 못했습니다.", cleanupError.message);
+    });
+    throw error;
+  }
 }
 
 export async function changeSupportedIdolRemote(

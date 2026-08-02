@@ -17,7 +17,7 @@ import type {
   Tile,
 } from "@/features/game/types/game";
 
-const ADJACENT_TO_LUMI = { x: 4, y: 5 } as const;
+const ADJACENT_TO_LUMI = { x: 139, y: 86 } as const;
 const FAR_FROM_LUMI = { x: 10, y: 10 } as const;
 
 function withTokens(state: GameState, tokens: number): GameState {
@@ -142,7 +142,7 @@ describe("attackTile", () => {
 
   it("rejects attacking a tile owned by the supported idol", () => {
     const state = createInitialGameState();
-    const ownCoordinate = { x: 5, y: 5 };
+    const ownCoordinate = { x: 140, y: 86 };
     const result = attackTile(state, ownCoordinate);
 
     expectFailureCode(result, "OWN_TILE");
@@ -168,12 +168,12 @@ describe("attackTile", () => {
   it("does not deduct a token or mutate state after a failed attack", () => {
     const state = createInitialGameState();
     const tokensBefore = state.tokens;
-    const tileBefore = getTile(state, { x: 5, y: 5 });
-    const result = attackTile(state, { x: 5, y: 5 });
+    const tileBefore = getTile(state, { x: 140, y: 86 });
+    const result = attackTile(state, { x: 140, y: 86 });
 
     expect(result.state).toBe(state);
     expect(state.tokens).toBe(tokensBefore);
-    expect(getTile(state, { x: 5, y: 5 })).toBe(tileBefore);
+    expect(getTile(state, { x: 140, y: 86 })).toBe(tileBefore);
   });
 
   it("rejects an attack when tokens are insufficient", () => {

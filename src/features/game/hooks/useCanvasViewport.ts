@@ -14,6 +14,7 @@ import { GAME_CONFIG } from "@/config/game";
 import {
   centerViewportAtWorldPoint,
   createFittedViewport,
+  createInitialBattlefieldViewport,
   createInitialViewport,
   getWheelZoom,
   panViewport,
@@ -133,7 +134,7 @@ export function useCanvasViewport({
       setPixelRatio(nextPixelRatio);
 
       const nextViewport = !hasSizedRef.current
-        ? createInitialViewport(width, height, initialFocusRef.current, mapSize)
+        ? createInitialBattlefieldViewport(width, height, mapSize)
         : overviewRef.current
           ? createFittedViewport(width, height, mapSize)
           : resizeViewport(viewportRef.current, width, height, mapSize);

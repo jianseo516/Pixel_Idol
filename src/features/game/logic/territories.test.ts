@@ -168,7 +168,7 @@ describe("territory region calculation", () => {
     const state = createInitialGameState();
     const regions = getTerritoryRegions(state, MOCK_IDOLS[0].id);
 
-    expect(findTerritoryRegionAt(regions, { x: 5, y: 5 })?.ownerId).toBe(
+    expect(findTerritoryRegionAt(regions, { x: 140, y: 86 })?.ownerId).toBe(
       MOCK_IDOLS[0].id,
     );
     expect(findTerritoryRegionAt(regions, { x: 20, y: 20 })).toBeNull();

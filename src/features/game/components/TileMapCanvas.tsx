@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { GameMinimap } from "@/features/game/components/GameMinimap";
 import { useCanvasViewport } from "@/features/game/hooks/useCanvasViewport";
@@ -41,6 +41,14 @@ export function TileMapCanvas({
   const representativeLayers = useRepresentativeImages(
     representativeLayerSpecs,
   );
+  const imageRevision = useMemo(
+    () => representativeLayers.reduce(
+      (maximum, layer) => Math.max(maximum, layer.renderRevision),
+      0,
+    ),
+    [representativeLayers],
+  );
+  const renderCountRef = useRef(0);
   const {
     canvasRef,
     viewport,
@@ -64,6 +72,16 @@ export function TileMapCanvas({
     }
 
     const frameId = requestAnimationFrame(() => {
+      renderCountRef.current += 1;
+      if (process.env.NODE_ENV === "development") {
+        console.debug("[tile-map-canvas-render]", {
+          renderCount: renderCountRef.current,
+          representativeLayerCount: representativeLayers.length,
+          imageRevision,
+          tileCount: Object.keys(state.tiles).length,
+          representativeOwners: representativeLayers.map((layer) => layer.ownerId),
+        });
+      }
       renderGameMap({
         context,
         state,
@@ -84,6 +102,7 @@ export function TileMapCanvas({
     pixelRatio,
     representativeBoundary,
     representativeLayers,
+    imageRevision,
     selectedCoordinate,
     showActionHighlights,
     state,

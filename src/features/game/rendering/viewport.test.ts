@@ -5,6 +5,7 @@ import {
   constrainViewport,
   createFittedViewport,
   createInitialViewport,
+  createInitialBattlefieldViewport,
   ensureTileVisible,
   getOwnedTerritoryWorldCenter,
   getVisibleTileRange,
@@ -111,6 +112,13 @@ describe("viewport coordinate conversions", () => {
 });
 
 describe("viewport navigation", () => {
+  it("centers the initial camera on the expanded world's legacy battlefield", () => {
+    const viewport = createInitialBattlefieldViewport(1200, 700);
+    const center = screenToWorld({ x: 600, y: 350 }, viewport);
+    expect(center.x).toBeCloseTo(GAME_CONFIG.mapWidth * GAME_CONFIG.tileSize / 2);
+    expect(center.y).toBeCloseTo(GAME_CONFIG.mapHeight * GAME_CONFIG.tileSize / 2);
+    expect(viewport.zoom).toBeGreaterThan(createFittedViewport(1200, 700).zoom);
+  });
   it("moves a selected tile in all four keyboard directions", () => {
     expect(moveSelectedCoordinate({ x: 5, y: 5 }, "ArrowUp")).toEqual({ x: 5, y: 4 });
     expect(moveSelectedCoordinate({ x: 5, y: 5 }, "ArrowDown")).toEqual({ x: 5, y: 6 });
@@ -257,10 +265,7 @@ describe("viewport navigation", () => {
     const mapScreenHeight =
       GAME_CONFIG.mapHeight * GAME_CONFIG.tileSize * zoomed.zoom;
 
-    expect(zoomed.offsetX).toBeGreaterThanOrEqual(
-      zoomed.width - mapScreenWidth - GAME_CONFIG.mapEdgePadding,
-    );
-    expect(zoomed.offsetX).toBeLessThanOrEqual(GAME_CONFIG.mapEdgePadding);
+    expect(zoomed.offsetX).toBe((zoomed.width - mapScreenWidth) / 2);
     expect(zoomed.offsetY).toBe((zoomed.height - mapScreenHeight) / 2);
   });
 
