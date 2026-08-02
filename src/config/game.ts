@@ -1,3 +1,5 @@
+export const STARTING_TOKENS = 500;
+
 export const GAME_CONFIG = {
   mapWidth: 360,
   mapHeight: 216,
@@ -9,7 +11,7 @@ export const GAME_CONFIG = {
   attackDamage: 1,
   claimTokenCost: 1,
   attackTokenCost: 1,
-  initialUserTokens: 100,
+  initialUserTokens: STARTING_TOKENS,
   maxActionPoints: 100,
   tileSize: 28,
   defaultTileDisplaySize: 32,
