@@ -1,5 +1,5 @@
-import { GAME_CONFIG } from "@/config/game";
-import type { Coordinate, GameState, Tile } from "@/features/game/types/game";
+import { DEFAULT_MAP_SIZE } from "@/config/game";
+import type { Coordinate, GameState, MapSize, Tile } from "@/features/game/types/game";
 
 const CARDINAL_OFFSETS: readonly Coordinate[] = [
   { x: 0, y: -1 },
@@ -8,14 +8,17 @@ const CARDINAL_OFFSETS: readonly Coordinate[] = [
   { x: -1, y: 0 },
 ];
 
-export function isCoordinateInBounds(coordinate: Coordinate): boolean {
+export function isCoordinateInBounds(
+  coordinate: Coordinate,
+  mapSize: MapSize = DEFAULT_MAP_SIZE,
+): boolean {
   return (
     Number.isInteger(coordinate.x) &&
     Number.isInteger(coordinate.y) &&
     coordinate.x >= 0 &&
-    coordinate.x < GAME_CONFIG.mapWidth &&
+    coordinate.x < mapSize.width &&
     coordinate.y >= 0 &&
-    coordinate.y < GAME_CONFIG.mapHeight
+    coordinate.y < mapSize.height
   );
 }
 
@@ -51,16 +54,45 @@ export function getTile(
   state: GameState,
   coordinate: Coordinate,
 ): Tile | undefined {
+  return getTileSnapshot(state, coordinate);
+}
+
+export function getStoredTile(
+  state: GameState,
+  coordinate: Coordinate,
+): Tile | undefined {
   return state.tiles[createTileId(state.season.id, coordinate)];
+}
+
+export function hasStoredTile(state: GameState, coordinate: Coordinate): boolean {
+  return getStoredTile(state, coordinate) !== undefined;
+}
+
+export function getTileSnapshot(
+  state: GameState,
+  coordinate: Coordinate,
+): Tile | undefined {
+  if (!isCoordinateInBounds(coordinate, state.mapSize)) {
+    return undefined;
+  }
+
+  return getStoredTile(state, coordinate) ?? {
+    id: createTileId(state.season.id, coordinate),
+    seasonId: state.season.id,
+    coordinate: { ...coordinate },
+    ownerId: null,
+    hp: 0,
+  };
 }
 
 export function getOrthogonalCoordinates(
   coordinate: Coordinate,
+  mapSize: MapSize = DEFAULT_MAP_SIZE,
 ): readonly Coordinate[] {
   return CARDINAL_OFFSETS.map((offset) => ({
     x: coordinate.x + offset.x,
     y: coordinate.y + offset.y,
-  })).filter(isCoordinateInBounds);
+  })).filter((candidate) => isCoordinateInBounds(candidate, mapSize));
 }
 
 export function hasAdjacentOwnedTile(
@@ -68,8 +100,7 @@ export function hasAdjacentOwnedTile(
   coordinate: Coordinate,
   ownerId: string,
 ): boolean {
-  return getOrthogonalCoordinates(coordinate).some(
-    (neighbor) => getTile(state, neighbor)?.ownerId === ownerId,
+  return getOrthogonalCoordinates(coordinate, state.mapSize).some(
+    (neighbor) => getStoredTile(state, neighbor)?.ownerId === ownerId,
   );
 }
-

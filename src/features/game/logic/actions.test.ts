@@ -99,7 +99,7 @@ describe("claimTile", () => {
     const result = claimTile(state, FAR_FROM_LUMI);
 
     expect(result.state).toBe(state);
-    expect(getTile(state, FAR_FROM_LUMI)).toBe(originalTile);
+    expect(getTile(state, FAR_FROM_LUMI)).toEqual(originalTile);
     expect(state.tokens).toBe(GAME_CONFIG.initialUserTokens);
   });
 });
@@ -190,4 +190,3 @@ describe("attackTile", () => {
     expect(result.state.tokens).toBe(0);
   });
 });
-

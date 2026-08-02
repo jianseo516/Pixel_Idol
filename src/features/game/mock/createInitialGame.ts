@@ -1,9 +1,10 @@
-import { GAME_CONFIG } from "@/config/game";
-import { createTileId } from "@/features/game/logic/coordinates";
+import { DEFAULT_MAP_SIZE, GAME_CONFIG } from "@/config/game";
+import { createTileId, isCoordinateInBounds } from "@/features/game/logic/coordinates";
 import type {
   Coordinate,
   GameState,
   Idol,
+  MapSize,
   Season,
   Tile,
 } from "@/features/game/types/game";
@@ -22,7 +23,7 @@ export const MOCK_SEASON: Season = {
   status: "active",
 };
 
-const STARTING_TERRITORIES: Readonly<Record<Idol["id"], readonly Coordinate[]>> = {
+export const MOCK_STARTING_TERRITORIES: Readonly<Record<Idol["id"], readonly Coordinate[]>> = {
   lumi: [
     { x: 5, y: 5 },
     { x: 6, y: 5 },
@@ -30,50 +31,50 @@ const STARTING_TERRITORIES: Readonly<Record<Idol["id"], readonly Coordinate[]>> 
     { x: 6, y: 6 },
   ],
   nova: [
-    { x: 24, y: 24 },
-    { x: 25, y: 24 },
-    { x: 24, y: 25 },
-    { x: 25, y: 25 },
+    { x: 44, y: 26 },
+    { x: 45, y: 26 },
+    { x: 44, y: 27 },
+    { x: 45, y: 27 },
   ],
   muse: [
-    { x: 43, y: 43 },
-    { x: 44, y: 43 },
-    { x: 43, y: 44 },
-    { x: 44, y: 44 },
+    { x: 83, y: 47 },
+    { x: 84, y: 47 },
+    { x: 83, y: 48 },
+    { x: 84, y: 48 },
   ],
 };
 
 function createTile(
   seasonId: string,
   coordinate: Coordinate,
-  ownerId: Idol["id"] | null,
+  ownerId: Idol["id"],
 ): Tile {
   return {
     id: createTileId(seasonId, coordinate),
     seasonId,
     coordinate,
     ownerId,
-    hp: ownerId === null ? 0 : GAME_CONFIG.maxTileHp,
+    hp: GAME_CONFIG.maxTileHp,
   };
 }
 
-export function createInitialGameState(): GameState {
+export function createInitialGameState(
+  mapSize: MapSize = DEFAULT_MAP_SIZE,
+): GameState {
   const tiles: Record<string, Tile> = {};
 
-  for (let y = 0; y < GAME_CONFIG.mapHeight; y += 1) {
-    for (let x = 0; x < GAME_CONFIG.mapWidth; x += 1) {
-      const coordinate = { x, y };
-      const owner = MOCK_IDOLS.find((idol) =>
-        STARTING_TERRITORIES[idol.id].some(
-          (start) => start.x === coordinate.x && start.y === coordinate.y,
-        ),
-      );
-      const tile = createTile(MOCK_SEASON.id, coordinate, owner?.id ?? null);
+  for (const idol of MOCK_IDOLS) {
+    for (const coordinate of MOCK_STARTING_TERRITORIES[idol.id]) {
+      if (!isCoordinateInBounds(coordinate, mapSize)) {
+        continue;
+      }
+      const tile = createTile(MOCK_SEASON.id, coordinate, idol.id);
       tiles[tile.id] = tile;
     }
   }
 
   return {
+    mapSize,
     season: MOCK_SEASON,
     idols: Object.fromEntries(MOCK_IDOLS.map((idol) => [idol.id, idol])),
     tiles,
@@ -81,4 +82,3 @@ export function createInitialGameState(): GameState {
     tokens: GAME_CONFIG.initialUserTokens,
   };
 }
-

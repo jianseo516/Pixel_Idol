@@ -3,6 +3,11 @@ export interface Coordinate {
   readonly y: number;
 }
 
+export interface MapSize {
+  readonly width: number;
+  readonly height: number;
+}
+
 export interface Idol {
   readonly id: string;
   readonly name: string;
@@ -28,6 +33,7 @@ export interface Tile {
 }
 
 export interface GameState {
+  readonly mapSize: MapSize;
   readonly season: Season;
   readonly idols: Readonly<Record<Idol["id"], Idol>>;
   readonly tiles: Readonly<Record<Tile["id"], Tile>>;
@@ -61,4 +67,3 @@ export type TileActionResult =
       readonly state: GameState;
       readonly error: TileActionError;
     };
-

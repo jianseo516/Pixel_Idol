@@ -1,6 +1,7 @@
 import { GAME_CONFIG } from "@/config/game";
 import {
-  getTile,
+  getStoredTile,
+  getTileSnapshot,
   hasAdjacentOwnedTile,
   isCoordinateInBounds,
 } from "@/features/game/logic/coordinates";
@@ -57,8 +58,8 @@ function validateTarget(
   state: GameState,
   coordinate: Coordinate,
   tokenCost: number,
-): Tile | TileActionResult {
-  if (!isCoordinateInBounds(coordinate)) {
+): TileActionResult | null {
+  if (!isCoordinateInBounds(coordinate, state.mapSize)) {
     return failure(state, "OUT_OF_BOUNDS");
   }
 
@@ -70,21 +71,24 @@ function validateTarget(
     return failure(state, "INSUFFICIENT_TOKENS");
   }
 
-  const tile = getTile(state, coordinate);
-  return tile ?? failure(state, "TILE_NOT_FOUND");
-}
-
-function isFailure(value: Tile | TileActionResult): value is TileActionResult {
-  return "ok" in value;
+  return null;
 }
 
 export function claimTile(
   state: GameState,
   coordinate: Coordinate,
 ): TileActionResult {
-  const target = validateTarget(state, coordinate, GAME_CONFIG.claimTokenCost);
-  if (isFailure(target)) {
-    return target;
+  const validationFailure = validateTarget(
+    state,
+    coordinate,
+    GAME_CONFIG.claimTokenCost,
+  );
+  if (validationFailure) {
+    return validationFailure;
+  }
+  const target = getTileSnapshot(state, coordinate);
+  if (!target) {
+    return failure(state, "TILE_NOT_FOUND");
   }
 
   if (target.ownerId !== null) {
@@ -108,9 +112,17 @@ export function attackTile(
   state: GameState,
   coordinate: Coordinate,
 ): TileActionResult {
-  const target = validateTarget(state, coordinate, GAME_CONFIG.attackTokenCost);
-  if (isFailure(target)) {
-    return target;
+  const validationFailure = validateTarget(
+    state,
+    coordinate,
+    GAME_CONFIG.attackTokenCost,
+  );
+  if (validationFailure) {
+    return validationFailure;
+  }
+  const target = getStoredTile(state, coordinate);
+  if (!target) {
+    return failure(state, "NOT_ENEMY_TILE");
   }
 
   if (target.ownerId === state.supportedIdolId) {
@@ -134,4 +146,3 @@ export function attackTile(
 
   return replaceTile(state, attackedTile, GAME_CONFIG.attackTokenCost);
 }
-
