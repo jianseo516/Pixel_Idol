@@ -10,6 +10,7 @@ export const GAME_CONFIG = {
   claimTokenCost: 1,
   attackTokenCost: 1,
   initialUserTokens: 100,
+  maxActionPoints: 100,
   tileSize: 28,
   defaultTileDisplaySize: 32,
   minZoom: 0.02,

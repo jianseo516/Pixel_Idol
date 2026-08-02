@@ -30,6 +30,18 @@ export interface PlayerRow {
   readonly supported_idol_id: string;
   readonly tokens: number;
   readonly last_action_at?: string | null;
+  readonly claimed_tiles_count?: number;
+  readonly successful_attacks_count?: number;
+  readonly total_attacks_count?: number;
+  readonly created_at?: string;
+}
+
+export interface ProfileRow {
+  readonly user_id: string;
+  readonly nickname: string;
+  readonly normalized_nickname: string;
+  readonly created_at: string;
+  readonly updated_at: string;
 }
 
 export interface GameSnapshotRows {

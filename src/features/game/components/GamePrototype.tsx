@@ -1,27 +1,35 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { IdolSelector } from "@/features/game/components/IdolSelector";
 import { IdolImageUploadPanel } from "@/features/game/components/IdolImageUploadPanel";
 import { TileInfoPanel, type GameActionMessage } from "@/features/game/components/TileInfoPanel";
 import { TileMapCanvas } from "@/features/game/components/TileMapCanvas";
 import { TerritorySummaryPanel } from "@/features/game/components/TerritorySummaryPanel";
+import { MyPageModal } from "@/features/game/components/MyPageModal";
 import { useSupabaseGame } from "@/features/game/hooks/useSupabaseGame";
 import { getTileActionPreview } from "@/features/game/logic/actionPreview";
 import { getActionableTiles } from "@/features/game/logic/actionableTiles";
 import { getStoredTile, getTile } from "@/features/game/logic/coordinates";
 import { getAllIdolTerritorySummaries } from "@/features/game/logic/territories";
 import { getTerritoryBoundarySegments } from "@/features/game/logic/territoryBoundary";
+import { getFactionTerritoryCount } from "@/features/game/logic/playerStats";
+import { consumeMyPageQuery } from "@/features/game/logic/myPageNavigation";
 import { createRepresentativeLayerSpecs } from "@/features/game/rendering/representativeImage";
 import { getOwnedTerritoryWorldCenter } from "@/features/game/rendering/viewport";
 import type { Coordinate, Idol } from "@/features/game/types/game";
 
 export function GamePrototype() {
+  const router = useRouter();
   const remote = useSupabaseGame();
   const gameState = remote.gameState;
   const [selectedCoordinate, setSelectedCoordinate] = useState<Coordinate | null>(null);
   const [actionMessage, setActionMessage] = useState<GameActionMessage | null>(null);
+  const [isMyPageOpen, setIsMyPageOpen] = useState(false);
+  const myPageButtonRef = useRef<HTMLButtonElement>(null);
 
   const idols = useMemo(() => Object.values(gameState?.idols ?? {}), [gameState]);
   const territoryCenter = useMemo(
@@ -72,6 +80,24 @@ export function GamePrototype() {
       : [],
     [gameState, territorySummaries],
   );
+  const factionTerritoryCount = useMemo(
+    () => gameState ? getFactionTerritoryCount(gameState, gameState.supportedIdolId) : 0,
+    [gameState],
+  );
+  const closeMyPage = useCallback(() => {
+    setIsMyPageOpen(false);
+    window.setTimeout(() => myPageButtonRef.current?.focus(), 0);
+  }, []);
+
+  useEffect(() => {
+    if (!remote.isAuthenticated || !remote.profile || !remote.player) return;
+    const navigation = consumeMyPageQuery(window.location.pathname, window.location.search);
+    if (!navigation.shouldOpen) return;
+    window.history.replaceState(window.history.state, "", navigation.cleanedPath);
+    let active = true;
+    queueMicrotask(() => { if (active) setIsMyPageOpen(true); });
+    return () => { active = false; };
+  }, [remote.isAuthenticated, remote.player, remote.profile]);
 
   const handleSelect = useCallback((coordinate: Coordinate) => {
     setSelectedCoordinate(coordinate);
@@ -82,6 +108,7 @@ export function GamePrototype() {
     setActionMessage(null);
   }, []);
   const handleIdolChange = useCallback((idolId: Idol["id"]) => {
+    if (!remote.isAuthenticated) { setActionMessage({ kind: "error", text: "로그인 후 이용할 수 있습니다." }); router.push("/login"); return; }
     setActionMessage(null);
     void remote.changeSupportedIdol(idolId).catch((error: unknown) => {
       setActionMessage({
@@ -89,9 +116,10 @@ export function GamePrototype() {
         text: error instanceof Error ? error.message : "응원 아이돌 변경에 실패했습니다.",
       });
     });
-  }, [remote]);
+  }, [remote, router]);
 
   const handleAction = useCallback(async () => {
+    if (!remote.isAuthenticated) { setActionMessage({ kind: "error", text: "로그인 후 이용할 수 있습니다." }); router.push("/login"); return; }
     if (!gameState || !selectedCoordinate || !actionPreview?.allowed || remote.isPending) return;
     const previousOwnerId = getStoredTile(gameState, selectedCoordinate)?.ownerId;
     try {
@@ -117,7 +145,7 @@ export function GamePrototype() {
         text: error instanceof Error ? error.message : "행동 처리에 실패했습니다.",
       });
     }
-  }, [actionPreview, gameState, remote, selectedCoordinate]);
+  }, [actionPreview, gameState, remote, router, selectedCoordinate]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -181,19 +209,24 @@ export function GamePrototype() {
           <span className="size-3 rounded-full" style={{ backgroundColor: supportedIdol?.color }} aria-hidden="true" />
           <div className="text-right"><p className="text-xs text-slate-500">응원 중</p><p className="text-sm font-bold">{supportedIdol?.name}</p></div>
         </div>
+        <nav className="flex items-center gap-2 text-xs font-bold">
+          <Link href="/help" className="rounded-lg border border-slate-700 px-3 py-2 hover:bg-slate-800">? 도움말</Link>
+          {remote.isAuthenticated && remote.profile && remote.player ? <><span className="hidden text-slate-300 sm:inline">{remote.profile.nickname}</span><button ref={myPageButtonRef} type="button" onClick={() => setIsMyPageOpen(true)} className="rounded-lg bg-slate-700 px-3 py-2 hover:bg-slate-600">마이페이지</button></> : <><Link href="/login" className="rounded-lg bg-rose-500 px-3 py-2">로그인</Link><Link href="/signup" className="rounded-lg border border-slate-600 px-3 py-2">회원가입</Link></>}
+        </nav>
       </header>
       <section className="grid min-w-0 flex-1 gap-3 p-3 sm:p-4 lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_288px]">
         <div className="relative h-[65dvh] min-h-0 min-w-0 overflow-hidden rounded-2xl border border-slate-700 bg-slate-950 shadow-2xl shadow-black/30 lg:h-full">
           <TileMapCanvas state={gameState} selectedCoordinate={selectedCoordinate} initialFocusWorldPoint={territoryCenter} actionableTiles={actionableTiles} representativeBoundary={representativeBoundary} representativeLayerSpecs={representativeLayerSpecs} onSelect={handleSelect} />
         </div>
         <div className="grid min-h-0 gap-3 overflow-y-auto">
-          <TileInfoPanel selectedTile={selectedTile} owner={selectedOwner} tokens={gameState.tokens} preview={actionPreview} actionMessage={actionMessage} isPending={remote.isPending} onAction={() => void handleAction()} onClear={handleClear} />
-          {supportedIdol ? <IdolImageUploadPanel idol={supportedIdol} isUploading={remote.isUploadingImage} onSubmit={remote.submitIdolImage} /> : null}
+          <TileInfoPanel selectedTile={selectedTile} owner={selectedOwner} tokens={gameState.tokens} preview={actionPreview} actionMessage={actionMessage} isPending={remote.isPending} isAuthenticated={remote.isAuthenticated} onAction={() => void handleAction()} onClear={handleClear} />
+          {supportedIdol && remote.isAuthenticated ? <IdolImageUploadPanel idol={supportedIdol} isUploading={remote.isUploadingImage} onSubmit={remote.submitIdolImage} /> : <section className="rounded-2xl border border-slate-700 bg-slate-900 p-4 text-sm text-slate-300"><p>로그인 후 이용할 수 있습니다.</p><p className="mt-1 text-xs text-slate-500">점령, 공격, 응원 아이돌 변경과 이미지 업로드는 로그인이 필요합니다.</p><div className="mt-3 flex gap-3"><Link href="/login" className="font-bold text-rose-300">로그인</Link><Link href="/signup" className="font-bold text-slate-200">회원가입</Link></div></section>}
         </div>
       </section>
       <p className="shrink-0 border-t border-slate-800 px-4 py-2 text-center text-[11px] text-slate-500">
         공개 데모의 안정성을 위해 행동 간 짧은 대기 시간이 적용됩니다. · 본 서비스는 비공식 팬 제작 프로토타입이며 각 아티스트 및 소속사와 관련이 없습니다. 현재 대표 이미지는 직접 제작한 워드마크 목업입니다.
       </p>
+      {isMyPageOpen && remote.profile && remote.player ? <MyPageModal profile={remote.profile} player={remote.player} idols={idols} supportedIdol={supportedIdol} factionTerritoryCount={factionTerritoryCount} isAdmin={remote.isAdmin} onClose={closeMyPage} onChangeIdol={remote.changeSupportedIdol} onLogout={async () => { await remote.logout(); closeMyPage(); }} /> : null}
     </main>
   );
 }

@@ -36,6 +36,10 @@ const ROWS: GameSnapshotRows = {
     user_id: "00000000-0000-0000-0000-000000000001",
     supported_idol_id: "bts",
     tokens: 87,
+    claimed_tiles_count: 0,
+    successful_attacks_count: 0,
+    total_attacks_count: 0,
+    created_at: "2026-08-02T00:00:00.000Z",
   },
 };
 

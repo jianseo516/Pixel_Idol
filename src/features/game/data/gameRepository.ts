@@ -11,38 +11,11 @@ import type {
   SubmitIdolImageRpcResult,
 } from "@/features/game/types/database";
 import { createIdolImageStoragePath, type IdolImageMimeType } from "@/features/game/data/idolImageUpload";
+import { throwSupabaseQueryError } from "@/lib/supabase/errorDiagnostics";
 
 export interface LoadedGameSnapshot {
   readonly gameState: GameState;
   readonly tileRows: readonly TileRow[];
-}
-
-function throwIfError(error: { readonly message: string } | null): void {
-  if (error) {
-    throw new Error(error.message);
-  }
-}
-
-let anonymousSessionPromise: Promise<void> | null = null;
-
-async function createAnonymousSession(client: SupabaseClient): Promise<void> {
-  const { data, error } = await client.auth.getSession();
-  throwIfError(error);
-  if (data.session) {
-    return;
-  }
-  const signInResult = await client.auth.signInAnonymously();
-  throwIfError(signInResult.error);
-}
-
-export function ensureAnonymousSession(client: SupabaseClient): Promise<void> {
-  if (!anonymousSessionPromise) {
-    anonymousSessionPromise = createAnonymousSession(client).catch((error) => {
-      anonymousSessionPromise = null;
-      throw error;
-    });
-  }
-  return anonymousSessionPromise;
 }
 
 async function getActiveSeason(client: SupabaseClient): Promise<SeasonRow> {
@@ -50,10 +23,8 @@ async function getActiveSeason(client: SupabaseClient): Promise<SeasonRow> {
     .from("seasons")
     .select("id,name,starts_at,ends_at,status,map_width,map_height")
     .eq("status", "active")
-    .order("starts_at", { ascending: false })
-    .limit(1)
-    .single();
-  throwIfError(error);
+    .maybeSingle();
+  throwSupabaseQueryError("game.active-season", error);
   if (!data) throw new Error("활성 시즌을 찾을 수 없습니다.");
   return data as SeasonRow;
 }
@@ -61,6 +32,7 @@ async function getActiveSeason(client: SupabaseClient): Promise<SeasonRow> {
 export async function loadGameSnapshot(
   client: SupabaseClient,
   seasonId?: string,
+  userId?: string,
 ): Promise<LoadedGameSnapshot> {
   const season = seasonId
     ? await (async () => {
@@ -68,17 +40,18 @@ export async function loadGameSnapshot(
           .from("seasons")
           .select("id,name,starts_at,ends_at,status,map_width,map_height")
           .eq("id", seasonId)
-          .single();
-        throwIfError(error);
+          .maybeSingle();
+        throwSupabaseQueryError("game.season-by-id", error);
         if (!data) throw new Error("시즌을 찾을 수 없습니다.");
         return data as SeasonRow;
       })()
     : await getActiveSeason(client);
 
-  const initialization = await client.rpc("initialize_player", {
-    p_season_id: season.id,
-  });
-  throwIfError(initialization.error);
+  let playerQuery = client
+    .from("players")
+    .select("season_id,user_id,supported_idol_id,tokens,last_action_at,claimed_tiles_count,successful_attacks_count,total_attacks_count,created_at")
+    .eq("season_id", season.id);
+  if (userId) playerQuery = playerQuery.eq("user_id", userId);
 
   const [idolResult, tileResult, playerResult] = await Promise.all([
     client
@@ -89,15 +62,11 @@ export async function loadGameSnapshot(
       .from("tiles")
       .select("season_id,x,y,owner_id,hp,updated_at")
       .eq("season_id", season.id),
-    client
-      .from("players")
-      .select("season_id,user_id,supported_idol_id,tokens")
-      .eq("season_id", season.id)
-      .single(),
+    playerQuery.maybeSingle(),
   ]);
-  throwIfError(idolResult.error);
-  throwIfError(tileResult.error);
-  throwIfError(playerResult.error);
+  throwSupabaseQueryError("game.idols", idolResult.error);
+  throwSupabaseQueryError("game.tiles", tileResult.error);
+  throwSupabaseQueryError("game.player", playerResult.error);
   if (!playerResult.data) throw new Error("플레이어 상태를 찾을 수 없습니다.");
 
   const tileRows = (tileResult.data ?? []) as TileRow[];
@@ -107,6 +76,35 @@ export async function loadGameSnapshot(
     tiles: tileRows,
     player: playerResult.data as PlayerRow,
   }), tileRows };
+}
+
+export async function loadPublicGameSnapshot(client: SupabaseClient): Promise<LoadedGameSnapshot> {
+  const season = await getActiveSeason(client);
+  const [idolResult, tileResult] = await Promise.all([
+    client.from("idols").select("id,name,color,representative_image_src").order("sort_order"),
+    client.from("tiles").select("season_id,x,y,owner_id,hp,updated_at").eq("season_id", season.id),
+  ]);
+  throwSupabaseQueryError("public-game.idols", idolResult.error);
+  throwSupabaseQueryError("public-game.tiles", tileResult.error);
+  const idols = (idolResult.data ?? []) as IdolRow[];
+  const firstIdol = idols[0];
+  if (!firstIdol) throw new Error("아이돌 정보를 찾을 수 없습니다.");
+  const tileRows = (tileResult.data ?? []) as TileRow[];
+  const player: PlayerRow = {
+    season_id: season.id,
+    user_id: "public-viewer",
+    supported_idol_id: firstIdol.id,
+    tokens: 0,
+    last_action_at: null,
+    claimed_tiles_count: 0,
+    successful_attacks_count: 0,
+    total_attacks_count: 0,
+    created_at: season.starts_at,
+  };
+  return {
+    gameState: adaptSupabaseRowsToGameState({ season, idols, tiles: tileRows, player }),
+    tileRows,
+  };
 }
 
 export async function loadGameState(client: SupabaseClient, seasonId?: string): Promise<GameState> {
@@ -121,14 +119,14 @@ export async function loadTileRows(
     .from("tiles")
     .select("season_id,x,y,owner_id,hp,updated_at")
     .eq("season_id", seasonId);
-  throwIfError(error);
+  throwSupabaseQueryError("game.tile-snapshot", error);
   return (data ?? []) as TileRow[];
 }
 
 export async function loadIdolRows(client: SupabaseClient): Promise<readonly IdolRow[]> {
   const { data, error } = await client.from("idols")
     .select("id,name,color,representative_image_src").order("sort_order");
-  throwIfError(error);
+  throwSupabaseQueryError("game.idol-snapshot", error);
   return (data ?? []) as IdolRow[];
 }
 
@@ -155,7 +153,7 @@ export async function submitIdolImageRemote(
     contentType: input.mimeType,
     upsert: false,
   });
-  throwIfError(upload.error);
+  throwSupabaseQueryError("image.storage-upload", upload.error);
   try {
     const result = await client.rpc("submit_raw_idol_image", {
       p_season_id: input.seasonId,
@@ -168,7 +166,7 @@ export async function submitIdolImageRemote(
       p_width: input.width,
       p_height: input.height,
     });
-    throwIfError(result.error);
+    throwSupabaseQueryError("image.submit-rpc", result.error);
     if (!result.data) throw new Error("대표 이미지 변경 결과가 없습니다.");
     return result.data as SubmitIdolImageRpcResult;
   } catch (error) {
@@ -188,7 +186,7 @@ export async function changeSupportedIdolRemote(
     p_season_id: seasonId,
     p_idol_id: idolId,
   });
-  throwIfError(result.error);
+  throwSupabaseQueryError("player.change-supported-idol", result.error);
   if (!result.data) throw new Error("플레이어 변경 결과가 없습니다.");
   return result.data as PlayerRow;
 }
@@ -204,7 +202,7 @@ async function runTileAction(
     p_x: coordinate.x,
     p_y: coordinate.y,
   });
-  throwIfError(result.error);
+  throwSupabaseQueryError(`tile.${rpcName}`, result.error);
   if (!result.data) throw new Error("타일 행동 결과가 없습니다.");
   return result.data as TileActionRpcResult;
 }

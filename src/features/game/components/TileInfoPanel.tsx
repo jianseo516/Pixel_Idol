@@ -17,6 +17,7 @@ interface TileInfoPanelProps {
   readonly preview: TileActionPreview | null;
   readonly actionMessage: GameActionMessage | null;
   readonly isPending: boolean;
+  readonly isAuthenticated?: boolean;
   readonly onAction: () => void;
   readonly onClear: () => void;
 }
@@ -28,6 +29,7 @@ export function TileInfoPanel({
   preview,
   actionMessage,
   isPending,
+  isAuthenticated = true,
   onAction,
   onClear,
 }: TileInfoPanelProps) {
@@ -88,7 +90,15 @@ export function TileInfoPanel({
             </p>
           ) : null}
 
-          {preview.allowed ? (
+          {!isAuthenticated ? (
+            <button
+              type="button"
+              onClick={onAction}
+              className="mt-4 w-full rounded-xl bg-rose-500 px-4 py-3 text-sm font-black text-white"
+            >
+              로그인 후 이용할 수 있습니다.
+            </button>
+          ) : preview.allowed ? (
             <button
               type="button"
               onClick={onAction}

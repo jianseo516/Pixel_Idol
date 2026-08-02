@@ -111,3 +111,28 @@ npm audit
 - 공개 운영 전에는 익명 가입과 자동화 요청을 제한하기 위해 CAPTCHA 또는 Cloudflare Turnstile 적용을 권장합니다.
 - Supabase Dashboard의 Realtime 사용량과 Database 사용량을 주기적으로 확인하세요.
 - 오래된 익명 계정 정리가 필요하면 보존 정책과 백업을 먼저 결정한 뒤 `supabase/maintenance/delete_old_anonymous_users.sql`을 검토하여 수동 실행하세요.
+# 닉네임 계정 설정
+
+`supabase/migrations/202608020007_nickname_auth_profiles_and_player_stats.sql`을 기존 migration 다음에 SQL Editor에서 실행합니다. 이 migration은 기존 시즌과 타일을 삭제하지 않습니다.
+
+Supabase Dashboard의 **Authentication → Providers → Email**에서 Email provider를 켜고 **Confirm email**을 꺼야 합니다. 사용자는 실제 이메일을 입력하지 않으며, 앱이 닉네임에서 만든 내부 식별용 주소만 Auth에 전달합니다. 비밀번호 분실 복구는 현재 지원하지 않습니다.
+
+**Authentication → Providers → Anonymous Sign-Ins**는 비활성화합니다. 앱은 익명 로그인을 요청하지 않으며, 브라우저에 과거 익명 세션이 남아 있으면 로컬 세션만 정리한 뒤 비로그인 공개 관람 상태로 전환합니다. 기존 익명 계정 현황은 `supabase/maintenance/inspect_legacy_anonymous_users.sql`로 먼저 조회하세요.
+
+## 최소 관리자 통계
+
+`supabase/migrations/202608020009_minimal_admin_stats.sql`을 008 다음에 실행합니다. 관리자 계정은 SQL Editor에서만 등록합니다.
+
+```sql
+select user_id, nickname, created_at
+from public.profiles
+where normalized_nickname = '<정규화한-닉네임>';
+
+insert into public.admin_users (user_id)
+values ('<확인한-user-id>')
+on conflict (user_id) do nothing;
+```
+
+관리자 통계는 현재 로그인 JWT로 `admin_get_summary()`를 호출합니다. service role 환경변수는 프런트엔드나 Vercel에 추가하지 않습니다. 온라인 사용자는 게임 페이지에 로그인한 사용자만 Supabase Realtime Presence 채널에 참여하여 집계됩니다.
+
+공개 지도 조회는 anon 역할에 허용되지만 점령, 공격, 응원 아이돌 변경, 이미지 업로드는 비익명 authenticated 사용자만 실행할 수 있습니다. 브라우저에 service role key를 설정하지 마세요.

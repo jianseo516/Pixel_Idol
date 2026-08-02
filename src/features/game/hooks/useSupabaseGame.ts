@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { User } from "@supabase/supabase-js";
 
 import {
   attackTileRemote,
   changeSupportedIdolRemote,
   claimTileRemote,
-  ensureAnonymousSession,
   loadGameSnapshot,
+  loadPublicGameSnapshot,
   loadIdolRows,
   loadTileRows,
   submitIdolImageRemote,
@@ -28,7 +29,13 @@ import {
 } from "@/features/game/data/requestControl";
 import type { Coordinate, GameState, Idol } from "@/features/game/types/game";
 import type { IdolRow, PlayerRow, TileActionRpcResult, TileRow } from "@/features/game/types/database";
+import type { ProfileRow } from "@/features/game/types/database";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { clearLegacyAnonymousSession, isPermanentUser, signOut } from "@/features/auth/authRepository";
+import { isLegacyAnonymousUser } from "@/features/auth/authAudience";
+import { initializeAuthenticatedAccount } from "@/features/auth/accountInitialization";
+import { isCurrentUserAdmin, recordLoginActivity } from "@/features/admin/adminData";
+import { useGamePresence } from "@/features/admin/useGamePresence";
 
 type LoadStatus = "loading" | "ready" | "error";
 export type RealtimeConnectionStatus =
@@ -53,6 +60,10 @@ export function useSupabaseGame() {
   const [isPending, setIsPending] = useState(false);
   const [isSynchronizing, setIsSynchronizing] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<ProfileRow | null>(null);
+  const [player, setPlayer] = useState<PlayerRow | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [realtimeStatus, setRealtimeStatus] =
     useState<RealtimeConnectionStatus>("connecting");
   const mutationRunnerRef = useRef(createExclusiveTaskRunner());
@@ -77,8 +88,32 @@ export function useSupabaseGame() {
     setErrorMessage(null);
     try {
       const client = getSupabaseBrowserClient();
-      await ensureAnonymousSession(client);
-      setLoadedSnapshot(await loadGameSnapshot(client));
+      const { data, error } = await client.auth.getSession();
+      if (error) throw error;
+      const currentUser = data.session?.user ?? null;
+      if (isLegacyAnonymousUser(currentUser)) {
+        await clearLegacyAnonymousSession(client, currentUser);
+      }
+      const authenticated = isPermanentUser(currentUser);
+      setUser(authenticated && !isLegacyAnonymousUser(currentUser) ? currentUser : null);
+      const account = authenticated && currentUser
+        ? await initializeAuthenticatedAccount(client, currentUser.id)
+        : null;
+      const snapshot = account
+        ? await loadGameSnapshot(client, account.seasonId, currentUser?.id)
+        : await loadPublicGameSnapshot(client);
+      setLoadedSnapshot(snapshot);
+      if (account) {
+        const nextIsAdmin = await isCurrentUserAdmin(client);
+        await recordLoginActivity(client);
+        setProfile(account.profile);
+        setPlayer(account.player);
+        setIsAdmin(nextIsAdmin);
+      } else {
+        setProfile(null);
+        setPlayer(null);
+        setIsAdmin(false);
+      }
     } catch (error) {
       setErrorMessage(getErrorMessage(error));
       setStatus("error");
@@ -88,20 +123,15 @@ export function useSupabaseGame() {
   useEffect(() => {
     let active = true;
     const client = getSupabaseBrowserClient();
-    void ensureAnonymousSession(client)
-      .then(() => loadGameSnapshot(client))
-      .then((snapshot) => {
-        if (active) setLoadedSnapshot(snapshot);
-      })
-      .catch((error: unknown) => {
-        if (!active) return;
-        setErrorMessage(getErrorMessage(error));
-        setStatus("error");
-      });
+    queueMicrotask(() => { if (active) void initialize(); });
+    const { data: listener } = client.auth.onAuthStateChange(() => {
+      window.setTimeout(() => { if (active) void initialize(); }, 0);
+    });
     return () => {
       active = false;
+      listener.subscription.unsubscribe();
     };
-  }, [setLoadedSnapshot]);
+  }, [initialize]);
 
   const mergeTileRow = useCallback(
     (
@@ -125,6 +155,7 @@ export function useSupabaseGame() {
           ...(player ? { tokens: player.tokens } : {}),
         };
       });
+      if (player) setPlayer(player);
     },
     [],
   );
@@ -265,17 +296,19 @@ export function useSupabaseGame() {
     async (idolId: Idol["id"]) => {
       const seasonId = gameState?.season.id;
       if (!seasonId) return null;
+      if (!user) throw new Error("로그인이 필요합니다.");
       const player = await runMutation(() =>
         changeSupportedIdolRemote(getSupabaseBrowserClient(), seasonId, idolId),
       );
       if (player) {
+        setPlayer(player);
         setGameState((current) => current?.season.id === seasonId
           ? { ...current, supportedIdolId: player.supported_idol_id, tokens: player.tokens }
           : current);
       }
       return player;
     },
-    [gameState?.season.id, runMutation],
+    [gameState?.season.id, runMutation, user],
   );
 
   const runTileAction = useCallback(
@@ -286,6 +319,7 @@ export function useSupabaseGame() {
     ) => {
       const seasonId = gameState?.season.id;
       if (!seasonId) return null;
+      if (!user) throw new Error("로그인이 필요합니다.");
       try {
         const result = await runMutation(() => action(seasonId, coordinate));
         if (result) {
@@ -299,7 +333,7 @@ export function useSupabaseGame() {
         throw error;
       }
     },
-    [gameState?.season.id, mergeTileRow, runMutation, synchronizeTiles],
+    [gameState?.season.id, mergeTileRow, runMutation, synchronizeTiles, user],
   );
 
   const claimTile = useCallback(
@@ -328,6 +362,7 @@ export function useSupabaseGame() {
     const seasonId = gameState?.season.id;
     const idolId = gameState?.supportedIdolId;
     if (!seasonId || !idolId) return null;
+    if (!user) throw new Error("로그인이 필요합니다.");
     const result = await uploadRunnerRef.current.tryRun(async () => {
       setIsUploadingImage(true);
       try {
@@ -340,7 +375,17 @@ export function useSupabaseGame() {
     });
     if (result.value) mergeIdolRow(result.value.idol);
     return result.value;
-  }, [gameState?.season.id, gameState?.supportedIdolId, mergeIdolRow]);
+  }, [gameState?.season.id, gameState?.supportedIdolId, mergeIdolRow, user]);
+
+  const logout = useCallback(async () => {
+    await signOut(getSupabaseBrowserClient());
+    setUser(null);
+    setProfile(null);
+    setPlayer(null);
+    setIsAdmin(false);
+  }, []);
+
+  useGamePresence(user?.id ?? null);
 
   return {
     gameState,
@@ -350,11 +395,17 @@ export function useSupabaseGame() {
     isSynchronizing,
     isUploadingImage,
     realtimeStatus,
+    user,
+    profile,
+    player,
+    isAuthenticated: Boolean(user),
+    isAdmin,
     retry: initialize,
     synchronizeTiles,
     changeSupportedIdol,
     claimTile,
     attackTile,
     submitIdolImage,
+    logout,
   } as const;
 }
